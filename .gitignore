@@ -1,0 +1,16 @@
+.codex/*.local.md
+.claude/*.local.md
+*.log
+evals/results/
+
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.squad/runtime/
+.squad/checkpoints/
+.squad/logs/
+dist/
+
+**/evals/results/

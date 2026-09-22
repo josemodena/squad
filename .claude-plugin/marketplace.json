@@ -1,0 +1,24 @@
+{
+  "name": "squad",
+  "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
+  "version": "0.4.0",
+  "owner": {
+    "name": "Squad"
+  },
+  "plugins": [
+    {
+      "name": "squad",
+      "source": "./plugins/claude-code/squad",
+      "displayName": "Squad",
+      "description": "Run a small, governed squad of coding agents with weekly planning, independent review, budget controls and durable handovers.",
+      "version": "0.4.0",
+      "category": "productivity",
+      "keywords": [
+        "agile",
+        "squad",
+        "sprint",
+        "board"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=Squad conductor: start a Chief of Staff session when the quota allows and none is alive
+
+[Service]
+Type=oneshot
+# install-conductor.sh writes this file. It names the launcher that finds the
+# installed plugin at every run, the project whose settings are read, and the
+# PATH the tools were found on, so that this unit names no version and
+# survives a plugin update untouched.
+EnvironmentFile=%h/.config/squad/conductor.env
+ExecStart=/usr/bin/env bash ${SQUAD_CONDUCTOR_SCRIPT}
+TimeoutStartSec=300

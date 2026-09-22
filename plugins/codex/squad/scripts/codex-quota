@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""Refresh Codex account usage and apply Squad's pacing rule.
+
+Codex exposes subscription usage through its local app-server protocol. The
+normal command refreshes that value, records a small snapshot, then prints one
+of: run, suspend, stale, or missing. Exit codes are 0, 1, 2 and 3 respectively.
+
+An explicit reading can still be recorded as a fallback:
+
+    codex-quota record --used 37 --resets-at 1789923600
+
+Use --no-refresh only for diagnostics or tests that deliberately exercise a
+saved snapshot.
+"""
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import select
+import shlex
+import subprocess
+import sys
+import time
+from squad_runtime import apply_policy, settings as runtime_settings
+
+DEFAULT_DAILY = 14.0
+DEFAULT_CAP = 85.0
+DEFAULT_BOUNDARY_HOUR = 17
+DEFAULT_MAX_AGE_MIN = 60
+DEFAULT_USAGE_FILE = "~/.cache/squad/codex-usage.json"
+
+
+def find_settings():
+    explicit = os.environ.get("SQUAD_SETTINGS")
+    if explicit:
+        return explicit if os.path.exists(explicit) else None
+    for base in (os.environ.get("SQUAD_PROJECT_DIR"), os.environ.get("CODEX_PROJECT_DIR")):
+        if base:
+            candidate = os.path.join(base, ".codex", "squad.local.md")
+            if os.path.exists(candidate):
+                return candidate
+    here = os.getcwd()
+    while True:
+        candidate = os.path.join(here, ".codex", "squad.local.md")
+        if os.path.exists(candidate):
+            return candidate
+        parent = os.path.dirname(here)
+        if parent == here:
+            return None
+        here = parent
+
+
+def read_settings():
+    values = {"daily": DEFAULT_DAILY, "cap": DEFAULT_CAP, "hour": DEFAULT_BOUNDARY_HOUR}
+    path = find_settings()
+    if not path:
+        return values, None
+    try:
+        contents = open(path, encoding="utf-8").read()
+    except OSError:
+        return values, None
+    match = re.match(r"^---\s*\n(.*?)\n(?:---|\.\.\.)\s*(?:\n|$)", contents, re.S)
+    front = match.group(1) if match else ""
+    keys = {
+        "quota_daily_percent": ("daily", float),
+        "quota_weekly_cap_percent": ("cap", float),
+        "sprint_hour_utc": ("hour", int),
+    }
+    for line in front.splitlines():
+        parts = line.split(":", 1)
+        if len(parts) != 2 or parts[0].strip() not in keys:
+            continue
+        name, cast = keys[parts[0].strip()]
+        raw = parts[1].split("#")[0].strip().strip('"').strip("'")
+        try:
+            values[name] = cast(raw)
+        except ValueError:
+            pass
+    return values, path
+
+
+def usage_path():
+    return os.path.expanduser(os.environ.get("SQUAD_USAGE_FILE", DEFAULT_USAGE_FILE))
+
+
+def utc(timestamp):
+    return dt.datetime.fromtimestamp(timestamp, dt.timezone.utc)
+
+
+def record_snapshot(used, resets_at, issue=None, event=None, *, announce=True, source=None, windows=None):
+    path = usage_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    captured_at = int(time.time())
+    snapshot = {
+        "captured_at": captured_at,
+        "seven_day": {"used_percentage": used, "resets_at": resets_at},
+        "source": source or "Codex account usage",
+        "provider_windows": windows or [],
+    }
+    temporary = f"{path}.tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(snapshot, handle, indent=2)
+        handle.write("\n")
+    os.replace(temporary, path)
+    if issue is not None:
+        ledger = os.path.expanduser(
+            os.environ.get(
+                "SQUAD_QUOTA_LEDGER",
+                os.path.join(os.path.dirname(path), "codex-usage-ledger.jsonl"),
+            )
+        )
+        entry = {
+            "captured_at": captured_at,
+            "issue": issue,
+            "event": event,
+            "weekly_used": used,
+            "resets_at": resets_at,
+        }
+        with open(ledger, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, separators=(",", ":")) + "\n")
+    if announce:
+        print(f"recorded: weekly {used}% used in {path}")
+
+
+def app_server_response(process, request_id, timeout=10):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.monotonic()))
+        if not ready:
+            break
+        line = process.stdout.readline()
+        if not line:
+            break
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if message.get("id") == request_id:
+            return message
+    return None
+
+
+def refresh_snapshot(*, announce=False, issue=None, event=None):
+    """Read the weekly window from Codex app-server and save only its quota data."""
+    command = shlex.split(os.environ.get("SQUAD_CODEX_COMMAND", "codex"))
+    if not command:
+        return False
+    process = None
+    try:
+        process = subprocess.Popen(
+            command + ["app-server", "--listen", "stdio://"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+        )
+
+        def send(message):
+            process.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
+            process.stdin.flush()
+
+        send({
+            "method": "initialize",
+            "id": 0,
+            "params": {
+                "clientInfo": {
+                    "name": "squad_quota",
+                    "title": "Squad quota",
+                    "version": "1",
+                }
+            },
+        })
+        initialized = app_server_response(process, 0)
+        if not initialized or "result" not in initialized:
+            return False
+        send({"method": "initialized", "params": {}})
+        send({"method": "account/rateLimits/read", "id": 1, "params": {}})
+        response = app_server_response(process, 1)
+        result = (response or {}).get("result") or {}
+        snapshot = (result.get("rateLimitsByLimitId") or {}).get("codex")
+        snapshot = snapshot or result.get("rateLimits") or {}
+        windows = [snapshot.get("primary"), snapshot.get("secondary")]
+        windows = [window for window in windows if isinstance(window, dict)]
+        if not windows:
+            return False
+        week = max(windows, key=lambda window: window.get("windowDurationMins") or 0)
+        used = week.get("usedPercent")
+        resets_at = week.get("resetsAt")
+        duration = week.get("windowDurationMins")
+        if used is None or resets_at is None or duration != 7 * 24 * 60:
+            return False
+        record_snapshot(
+            float(used),
+            int(resets_at),
+            issue,
+            event,
+            announce=announce,
+            source="Codex app-server account/rateLimits/read",
+            windows=[{"used_percentage": w["usedPercent"], "resets_at": w["resetsAt"]} for w in windows if w.get("usedPercent") is not None and w.get("resetsAt") is not None],
+        )
+        return True
+    except (OSError, BrokenPipeError, TypeError, ValueError):
+        return False
+    finally:
+        if process is not None:
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+
+
+def verdict(max_age, as_json):
+    settings, settings_path = read_settings()
+    daily, cap, boundary_hour = settings["daily"], settings["cap"], settings["hour"]
+    forced = os.environ.get("SQUAD_QUOTA_FORCE", "").strip()
+    path = usage_path()
+    if not os.path.exists(path):
+        if forced in ("run", "suspend", "stale"):
+            print(f"{forced}: forced by SQUAD_QUOTA_FORCE, no usage reading available")
+            return {"run": 0, "suspend": 1, "stale": 2}[forced]
+        print(f"missing: no Codex usage snapshot at {path}")
+        return 3
+
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    week = data.get("seven_day") or {}
+    used = round(float(week.get("used_percentage", 0)), 1)
+    resets_at = int(week.get("resets_at", 0))
+    captured = int(data.get("captured_at", 0))
+    now = int(time.time())
+    age_min = max(0, (now - captured) // 60)
+    day_index = max(1, min(7, int((now - (resets_at - 7 * 86400)) / 86400) + 1))
+    allowance = min(cap, daily * day_index)
+    headroom = round(allowance - used, 1)
+
+    current = utc(now)
+    boundary = current.replace(hour=boundary_hour, minute=0, second=0, microsecond=0)
+    if boundary <= current:
+        boundary += dt.timedelta(days=1)
+
+    result = "run" if used < allowance and used < cap else "suspend"
+    if age_min > max_age:
+        result = "stale"
+    if forced in ("run", "suspend", "stale"):
+        result = forced
+    output = {
+        "verdict": result,
+        "weekly_used": used,
+        "allowance_to_date": allowance,
+        "headroom": headroom,
+        "cap": cap,
+        "daily": daily,
+        "day_of_week_window": day_index,
+        "window_resets_at": utc(resets_at).strftime("%a %d %b %H:%M UTC"),
+        "next_boundary": boundary.strftime("%a %d %b %H:%M UTC"),
+        "data_age_min": age_min,
+        "settings_file": settings_path,
+        "usage_file": path,
+    }
+    applied = apply_policy(runtime_settings(settings_path), data, allowance, used, resets_at, captured, now)
+    output.update(applied)
+    result = applied['verdict']
+    allowance, headroom = applied['allowance_to_date'], applied['headroom']
+    if forced in ('run', 'suspend', 'stale'):
+        result = forced
+        output['verdict'] = forced
+    if as_json:
+        print(json.dumps(output, indent=2))
+    else:
+        print(
+            f"{result}: weekly {used}% used, allowance to date {allowance}% "
+            f"(day {day_index}), headroom {headroom}%, next boundary "
+            f"{output['next_boundary']}, reset {output['window_resets_at']}, "
+            f"data age {age_min} min"
+        )
+    return {"run": 0, "suspend": 1, "stale": 2}[result]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command")
+    record = subparsers.add_parser("record", help="record a Codex usage reading")
+    record.add_argument("--used", type=float, required=True)
+    record.add_argument("--resets-at", type=int, required=True)
+    record.add_argument("--issue", type=int)
+    record.add_argument("--event", choices=("start", "checkpoint", "finish"))
+    refresh = subparsers.add_parser("refresh", help="refresh from Codex app-server")
+    refresh.add_argument("--issue", type=int)
+    refresh.add_argument("--event", choices=("start", "checkpoint", "finish"))
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--max-age", type=int, default=DEFAULT_MAX_AGE_MIN)
+    parser.add_argument("--no-refresh", action="store_true")
+    args = parser.parse_args()
+    if args.command == "record":
+        if not 0 <= args.used <= 100:
+            parser.error("--used must be between 0 and 100")
+        if (args.issue is None) != (args.event is None):
+            parser.error("--issue and --event must be used together")
+        record_snapshot(args.used, args.resets_at, args.issue, args.event)
+        return 0
+    if args.command == "refresh":
+        if (args.issue is None) != (args.event is None):
+            parser.error("--issue and --event must be used together")
+        return 0 if refresh_snapshot(
+            announce=True,
+            issue=args.issue,
+            event=args.event,
+        ) else 3
+    if not args.no_refresh and not os.environ.get("SQUAD_QUOTA_FORCE"):
+        # A failed refresh leaves the previous snapshot untouched. The normal
+        # stale or missing verdict then fails closed without extra output that
+        # could confuse the conductor's first-word parser.
+        refresh_snapshot()
+    return verdict(args.max_age, args.json)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

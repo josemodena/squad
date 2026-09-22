@@ -1,0 +1,11 @@
+[Unit]
+Description=Check whether Squad should continue %i
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+Unit=squad-conductor@%i.service
+
+[Install]
+WantedBy=timers.target

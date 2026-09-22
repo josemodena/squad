@@ -1,0 +1,10 @@
+[Unit]
+Description=Squad conductor for %i
+Requires=squad-app-server-gateway@%i.service
+After=squad-app-server-gateway@%i.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/squad/%i.env
+ExecStart=/usr/bin/env bash ${SQUAD_CONDUCTOR_SCRIPT}
+TimeoutStartSec=300

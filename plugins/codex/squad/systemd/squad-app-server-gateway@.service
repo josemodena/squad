@@ -1,0 +1,11 @@
+[Unit]
+Description=Squad App Server turn arbiter for %i
+Requires=squad-app-server@%i.service
+After=squad-app-server@%i.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/squad/%i.env
+ExecStart=/usr/bin/env ${SQUAD_CONDUCTOR_APP_SERVER_CLIENT} serve --listen ${SQUAD_CONDUCTOR_APP_SERVER_URL} --upstream ${SQUAD_CONDUCTOR_APP_SERVER_UPSTREAM} --state ${SQUAD_CONDUCTOR_STATE}
+Restart=on-failure
+RestartSec=2

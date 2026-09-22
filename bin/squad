@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Small, model-free entry point for both Squad plugin distributions."""
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+HARNESS_DIR = {'codex': '.codex', 'claude-code': '.claude'}
+HELP = '''Usage: squad [--harness codex|claude-code] [--project DIR] COMMAND [ARGS...]
+
+Start here:
+  doctor [--offline] [--recovery]  Check tools, configuration and GitHub login
+  init check|apply|create-board   Inspect or provision project tracking
+  board                          Show the GitHub Project board
+  status                         Show unfinished work and effective policy
+  ready                          Explain which items can be dispatched
+  models                         Show the six configured role models
+  quota [--json]                 Read subscription capacity
+  pause --reason TEXT            Persist a user pause
+  resume --reason TEXT           Record an explicit user resume
+  policy [--mode MODE --reason TEXT]
+
+Advanced:
+  git COMMAND                    Worktree, submission and reviewed-merge helpers
+  session inspect|attach|rollover Codex managed Administrator session
+  conductor install [OPTIONS]    Install optional external recovery
+  conductor uninstall [OPTIONS]  Remove optional external recovery
+  handover [OPTIONS]             Generate a handover
+  runtime COMMAND [ARGS...]      Typed runtime API (use runtime --help)
+  help | --help | --version
+
+Other tracker/runtime commands pass through unchanged (e.g. dependency, field,
+claim, checkpoint, recover, metrics). Run inside a configured project. If both
+harnesses are configured, select --harness explicitly. No command invokes a
+model except the explicit managed-session attach/recovery operations.
+'''
+
+
+def fail(message):
+    print('squad: ' + message, file=sys.stderr)
+    raise SystemExit(2)
+
+
+def select_harness(explicit):
+    if explicit:
+        if explicit not in HARNESS_DIR:
+            fail('--harness must be codex or claude-code')
+        return explicit
+    settings = os.environ.get('SQUAD_SETTINGS')
+    if settings:
+        parent = Path(settings).expanduser().resolve().parent.name
+        for name, directory in HARNESS_DIR.items():
+            if parent == directory:
+                return name
+        fail('use --harness with a custom SQUAD_SETTINGS path')
+    candidates = set()
+    for parent in (Path.cwd(), *Path.cwd().parents):
+        candidates = {h for h, d in HARNESS_DIR.items() if (parent / d / 'squad.local.md').is_file()}
+        if candidates:
+            break
+    if len(candidates) == 1:
+        return candidates.pop()
+    fail('select --harness codex or --harness claude-code' +
+         ('; both have project settings' if candidates else '; no project settings found'))
+
+
+def doctor(harness, args):
+    if set(args) - {'--offline', '--recovery'}:
+        fail('doctor accepts --offline and --recovery')
+    failed = False
+    def result(ok, label):
+        nonlocal failed
+        print(('OK   ' if ok else 'FAIL ') + label)
+        failed |= not ok
+    result(platform.system() == 'Linux', 'Linux runtime (macOS/native Windows are not supported)')
+    result(sys.version_info >= (3, 10), 'Python >= 3.10')
+    commands = ['bash', 'git', 'gh', 'jq', 'flock', 'date', 'timeout', 'curl', 'codex' if harness == 'codex' else 'claude']
+    if '--recovery' in args:
+        commands += ['systemctl', 'go' if harness == 'codex' else 'zellij']
+    for command in commands:
+        result(shutil.which(command) is not None, command)
+    if shutil.which('date'):
+        result(subprocess.run(['date', '-u', '-d', '@0', '+%Y'], capture_output=True).returncode == 0, 'GNU date')
+    if shutil.which('bash'):
+        result(subprocess.run(['bash', '-c', '(( BASH_VERSINFO[0] >= 4 ))'], capture_output=True).returncode == 0, 'Bash >= 4')
+    if '--offline' not in args and shutil.which('gh'):
+        result(subprocess.run(['gh', 'auth', 'status', '-h', 'github.com'], capture_output=True).returncode == 0, 'GitHub CLI authentication (gh auth login)')
+    if '--recovery' in args and shutil.which('systemctl'):
+        result(subprocess.run(['systemctl', '--user', 'show-environment'], capture_output=True).returncode == 0, 'systemd user manager')
+    if '--recovery' in args and harness == 'codex' and shutil.which('go'):
+        version = subprocess.run(['go', 'env', 'GOVERSION'], capture_output=True, text=True).stdout.strip()
+        import re
+        match = re.match(r'go(\d+)\.(\d+)', version)
+        result(bool(match and tuple(map(int, match.groups())) >= (1, 23)), 'Go >= 1.23')
+    settings = os.environ.get('SQUAD_SETTINGS')
+    found = Path(settings).is_file() if settings else any((p / HARNESS_DIR[harness] / 'squad.local.md').is_file() for p in (Path.cwd(), *Path.cwd().parents))
+    print(('OK   ' if found else 'NEXT ') + 'project settings' + ('' if found else ': invoke the Squad init skill in your harness'))
+    if harness == 'claude-code':
+        print('NOTE Claude quota needs a separate usage collector; see docs/reference/configuration.md')
+    print('NOTE Model access, GitHub Project write permissions and live worker notifications need a project smoke test.')
+    return int(failed)
+
+
+def main():
+    args = sys.argv[1:]
+    explicit = os.environ.get('SQUAD_HARNESS')
+    project = os.environ.get('SQUAD_PROJECT_DIR')
+    while args and args[0] in ('--harness', '--project'):
+        if len(args) < 2:
+            fail(args[0] + ' requires a value')
+        flag, value, *args = args
+        if flag == '--harness':
+            explicit = value
+        else:
+            project = value
+    if not args or args[0] in ('help', '-h', '--help'):
+        print(HELP)
+        return 0
+    if args[0] == '--version':
+        print('Squad ' + (ROOT / 'VERSION').read_text().strip())
+        return 0
+    if project:
+        try:
+            os.chdir(Path(project).expanduser())
+        except OSError as exc:
+            fail(str(exc))
+        os.environ['SQUAD_PROJECT_DIR'] = str(Path.cwd())
+    if os.environ.get('SQUAD_SETTINGS'):
+        os.environ['SQUAD_SETTINGS'] = str(Path(os.environ['SQUAD_SETTINGS']).expanduser().resolve())
+    harness = select_harness(explicit)
+    command, *rest = args
+    if command == 'doctor':
+        return doctor(harness, rest)
+    scripts = ROOT / 'plugins' / harness / 'squad' / 'scripts'
+    if not scripts.is_dir():
+        fail('installation moved; rerun install.sh from a complete Squad checkout')
+    targets = {'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
+               'runtime': 'runtime.sh', 'session': 'conductor-session.sh'}
+    if command == 'session' and harness != 'codex':
+        fail('managed session commands are available only for Codex')
+    if command == 'conductor':
+        if not rest or rest[0] not in ('install', 'uninstall'):
+            fail('use conductor install or conductor uninstall')
+        action, *rest = rest
+        if action == 'uninstall':
+            rest.append('--uninstall')
+        target = 'install-conductor.sh'
+    elif command == 'quota':
+        target = 'codex-quota' if harness == 'codex' else 'claude-quota'
+    elif command in targets:
+        target = targets[command]
+        if command == 'init' and not rest:
+            rest = ['check']
+    else:
+        target = 'squad.sh'
+        rest = [('recover' if command == 'status' else command), *rest]
+    argv = (['python3'] if command == 'quota' else ['bash']) + [str(scripts / target), *rest]
+    os.execvp(argv[0], argv)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, ValueError) as exc:
+        fail(str(exc))

@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: plugins/codex/squad/conductor-appserver/go.mod
+          cache-dependency-path: plugins/codex/squad/conductor-appserver/go.sum
+      - name: Install fixture dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq gh curl
+      - name: Download Go modules for isolated installer fixtures
+        working-directory: plugins/codex/squad/conductor-appserver
+        run: go mod download
+      - name: Validate both distributions
+        run: bash tools/test.sh

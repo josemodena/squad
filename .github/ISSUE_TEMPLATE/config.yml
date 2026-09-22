@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation and support
+    url: https://github.com/josemodena/squad/blob/main/SUPPORT.md
+    about: Setup, requirements and troubleshooting.
+  - name: Private security report
+    url: https://github.com/josemodena/squad/security/advisories/new
+    about: Do not disclose security-sensitive findings in public issues.

@@ -1,0 +1,9 @@
+[Unit]
+Description=Private Codex App Server for Squad %i
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/squad/%i.env
+ExecStart=/usr/bin/env codex app-server --listen ${SQUAD_CONDUCTOR_APP_SERVER_UPSTREAM}
+Restart=on-failure
+RestartSec=2

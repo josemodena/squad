@@ -1,0 +1,42 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "squad",
+  "version": "0.4.0+codex.20260922105043",
+  "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
+  "author": {
+    "name": "Squad"
+  },
+  "homepage": "https://github.com/josemodena/squad",
+  "repository": "https://github.com/josemodena/squad",
+  "license": "UNLICENSED",
+  "keywords": [
+    "agents",
+    "agile",
+    "automation",
+    "codex",
+    "project-management"
+  ],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Squad",
+        "shortDescription": "A governed operating model for autonomous coding agents",
+        "longDescription": "Plan work with a human Decider, delegate bounded pieces to agents, review every change independently and keep projects moving between human sessions.",
+        "developerName": "Squad",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/josemodena/squad",
+        "defaultPrompt": [
+          "Set up this project to use Squad.",
+          "Plan the next Squad sprint.",
+          "Show me the Squad board and budget."
+        ],
+        "brandColor": "#315C4D"
+      }
+    }
+  }
+}

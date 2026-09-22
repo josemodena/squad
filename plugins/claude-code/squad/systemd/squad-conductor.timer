@@ -1,0 +1,13 @@
+[Unit]
+Description=Squad conductor, every ten minutes
+
+[Timer]
+# Ten minutes is short enough that a quota boundary or a finished session is
+# picked up quickly, and long enough that the checks cost nothing.
+OnBootSec=2min
+OnUnitActiveSec=10min
+AccuracySec=30s
+Unit=squad-conductor.service
+
+[Install]
+WantedBy=timers.target
