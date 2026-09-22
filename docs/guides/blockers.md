@@ -110,7 +110,8 @@ squad repair-claim repair-42 --issue 42 --worktree /path/to/worktree --brief rep
 This consumes an ordinary worker slot, selects the configured PM model, respects
 pause/capacity and prevents duplicate ownership. Its scope is repairing metadata
 from existing authority, not doing product implementation or approving new scope.
-A missing Agreement may require recovering an existing decision or asking the user.
+A missing Agreement blocks repair claims as well. Recover an actual existing decision
+without launching delivery, or ask the user; never classify unagreed scope as clerical work.
 The default provisional repair allowance is 0.5 weekly percentage points for the
 headroom check (`metadata_repair_estimate` can override it); unrestricted policy
 waives voluntary pacing, never provider exhaustion. After repair, record the result,

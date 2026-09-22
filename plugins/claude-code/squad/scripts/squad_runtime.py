@@ -219,8 +219,8 @@ def eligible(items, state, config, quota=None):
             reasons.append('insufficient-headroom')
         records += [blockers.describe(reason,item,config) for reason in reasons]
         reasons = list(dict.fromkeys([r['reason'] for r in records]))
-        repair_reasons={'missing-estimate','role-stage-mismatch','not-agreed','invalid-blocker-metadata','unresolved-blocker-label'}
-        repairable=bool(set(reasons)&repair_reasons) and not state.get('paused') and not any(r in reasons for r in ('already-owned','closed','outside-active-work')) and (not quota or quota.get('verdict')=='run')
+        repair_reasons={'missing-estimate','role-stage-mismatch','invalid-blocker-metadata','unresolved-blocker-label'}
+        repairable=f.get('Agreement')=='Agreed' and bool(set(reasons)&repair_reasons) and not state.get('paused') and not any(r in reasons for r in ('already-owned','closed','outside-active-work')) and (not quota or quota.get('verdict')=='run')
         answer.append({**item, 'role': role, 'stage': stage, 'eligible': not reasons, 'claimable':not reasons,
                        'reasons': reasons, 'blockers':records, 'requires_user':any(r['requires_user'] for r in records),
                        'next_actions':records, 'metadata_repair':{'owner':'project-manager','claimable':repairable,

@@ -70,6 +70,15 @@ class RuntimeTest(unittest.TestCase):
     def test_recovery_has_owned_blockers_for_agreed_exclusions(self):
         self.blocker();self.cli('ready');r=self.cli('recover')['readiness']
         self.assertIsNotNone(r['captured_at']);self.assertEqual(r['items'][0]['blockers'][0]['owner'],'Project owner')
+    def test_unagreed_scope_cannot_be_claimed_as_pm_repair(self):
+        self.config['project_manager_model']='astra'
+        del self.item['fields']['Agreement']
+        del self.item['fields']['Estimate (credits %)']
+        actions=self.cli('next')
+        self.assertFalse(actions['can_continue'])
+        self.assertTrue(any(a['action']=='request-user' and a['reason']=='not-agreed' for a in actions['actions']))
+        with self.assertRaises(ValueError):self.cli('repair-claim','bad','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.assertEqual(self.cli('state')['jobs'],{})
     def test_ack_cannot_lose_followup(self):
         self.claim();self.cli('complete','j1','--result','completed','--report',str(self.report))
         with patch.object(sys,'argv',['runtime','ack','j1']),patch.object(r,'settings',return_value=self.config),self.assertRaisesRegex(ValueError,'owned handoff'):
