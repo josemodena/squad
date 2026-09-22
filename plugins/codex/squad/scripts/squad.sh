@@ -139,11 +139,19 @@ option_id() {
   printf '%s\n' "$id"
 }
 
+BOARD_BACKED_UP=0
+backup_board() {
+  [ "$BOARD_BACKED_UP" = 1 ] && return 0
+  bash "$SCRIPT_DIR/board-backup.sh" guard --writes 10 >&2
+  BOARD_BACKED_UP=1
+}
+
 set_single_select() {
   local item_id="$1" field="$2" option="$3" fid oid
   fid="$(field_id "$field")"
   oid="$(option_id "$field" "$option")"
   [ -n "$oid" ] || squad_die "The field '$field' has no option '$option'."
+  backup_board
   gh project item-edit --id "$item_id" --project-id "$PROJECT_ID" \
     --field-id "$fid" --single-select-option-id "$oid" >/dev/null
 }
@@ -151,6 +159,7 @@ set_single_select() {
 set_number() {
   local item_id="$1" field="$2" value="$3" fid
   fid="$(field_id "$field")"
+  backup_board
   gh project item-edit --id "$item_id" --project-id "$PROJECT_ID" \
     --field-id "$fid" --number "$value" >/dev/null
 }
@@ -158,6 +167,7 @@ set_number() {
 set_date() {
   local item_id="$1" field="$2" value="$3" fid
   fid="$(field_id "$field")"
+  backup_board
   gh project item-edit --id "$item_id" --project-id "$PROJECT_ID" \
     --field-id "$fid" --date "$value" >/dev/null
 }
@@ -165,6 +175,7 @@ set_date() {
 set_iteration() {
   local item_id="$1" field="$2" iteration_id="$3" fid
   fid="$(field_id "$field")"
+  backup_board
   gh project item-edit --id "$item_id" --project-id "$PROJECT_ID" \
     --field-id "$fid" --iteration-id "$iteration_id" >/dev/null
 }
@@ -276,6 +287,7 @@ cmd_issue() {
   number="${url##*/}"
 
   load_project
+  backup_board
   item_id="$(gh project item-add "$SQUAD_PROJECT_NUMBER" --owner "$SQUAD_PROJECT_OWNER" --url "$url" --format json \
     | jq -r '.id')"
   [ -n "$item_id" ] && [ "$item_id" != "null" ] || squad_die "The issue was created but could not be added to the board."
@@ -310,24 +322,8 @@ ensure_option() {
     printf '%s\n' "$existing"
     return 0
   fi
-  # Rewriting the option list drops any option left out, so send the current
-  # options back unchanged with the new one appended.
-  options_json="$(printf '%s' "$PROJECT_JSON" \
-    | jq -c --arg f "$field" --arg n "$name" '
-        [ .data.project.fields.nodes[]
-          | select(.name == $f) | .options[]
-          | {name: .name, color: "BLUE", description: ""} ]
-        + [ {name: $n, color: "BLUE", description: ""} ]')"
-  # gh cannot pass a list-of-objects variable, so send the mutation literally.
-  literal="$(printf '%s' "$options_json" | jq -r '
-    [ .[] | "{name: " + (.name | @json) + ", color: BLUE, description: \"\"}" ] | join(", ")')"
-  gh api graphql -f query="
-    mutation {
-      updateProjectV2Field(input: {
-        fieldId: \"$fid\"
-        singleSelectOptions: [ $literal ]
-      }) { projectV2Field { ... on ProjectV2SingleSelectField { id } } }
-    }" >/dev/null
+  # The typed helper snapshots first, preserves option IDs and verifies values.
+  bash "$SCRIPT_DIR/board-backup.sh" options "$field" --names "$name" --apply >&2
 
   PROJECT_JSON=""
   load_project

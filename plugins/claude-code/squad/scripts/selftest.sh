@@ -50,6 +50,22 @@ cat > "$WORK/bin/gh" <<'FAKE'
 case "$1 $2" in
   "auth status") exit 0 ;;
   "api graphql")
+    if [[ " $* " == *" --input - "* ]]; then
+      python3 -c '
+import json,os,sys
+query=json.load(sys.stdin)["query"]
+p=json.load(open(os.environ["FAKE_GH_GRAPHQL"]))["data"]["user"]["projectV2"]
+p["updatedAt"]="fixture"
+page=lambda nodes: {"nodes":nodes,"pageInfo":{"hasNextPage":False,"endCursor":None}}
+if "projectV2(number" in query: data={"user":{"projectV2":p}}
+elif "views(first:" in query: data={"node":{"views":page([])}}
+elif "items(first:" in query: data={"node":{"items":page([])}}
+elif "fields(first:" in query: data={"node":{"fields":page(p["fields"]["nodes"])}}
+else: data={"node":{"updatedAt":"fixture"}}
+print("HTTP/2.0 200 OK\nx-ratelimit-remaining: 1000\n\n"+json.dumps({"data":data}))
+'
+      exit $?
+    fi
     # A GraphQL answer can be staged in a file, so a script that reads the
     # board can be checked without a board.
     if [ -n "${FAKE_GH_GRAPHQL:-}" ] && [ -r "$FAKE_GH_GRAPHQL" ]; then
@@ -62,6 +78,7 @@ printf 'fake gh called: %s\n' "$*" >> "$FAKE_GH_LOG"
 exit 0
 FAKE
 chmod +x "$WORK/bin/gh"
+export SQUAD_BOARD_BACKUP_DIR="$WORK/board-backups"
 export FAKE_GH_LOG="$WORK/gh.log"
 : > "$FAKE_GH_LOG"
 PATH="$WORK/bin:$PATH"

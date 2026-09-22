@@ -81,3 +81,11 @@ them local by default. Runtime checkpoints can contain source and untracked file
 Restrict their filesystem access, avoid publishing logs, and back up durable state
 according to the project's needs. Never delete a state directory to clear a
 blocked job without reconciling the worker and its processes first.
+
+## Board backup storage
+
+Optional `board_backup_dir` selects the private durable base directory. By default
+this is `<scratch_root>/board-backups`. Squad appends the GitHub host and
+`<owner>-<project number>` so projects have separate histories and locks. Multiple
+local workers on the same board must use the same base. See
+[board backup and restore](../guides/board-backup.md) for retention and API limits.

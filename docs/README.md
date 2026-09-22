@@ -16,6 +16,7 @@ install a recovery service for your first project.
 - [Codex operation and recovery](guides/codex.md)
 - [Claude Code operation and recovery](guides/claude-code.md)
 - [Migration from older releases](guides/migration.md)
+- [Board backups and recovery](guides/board-backup.md)
 - [Troubleshooting](guides/troubleshooting.md)
 
 ## Reference

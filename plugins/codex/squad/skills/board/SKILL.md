@@ -53,3 +53,14 @@ owner must be ones this project has; `squad.sh settings` lists them.
 - Quota readings are comments on the sprint issue, never commits.
 
 Use `squad.sh ready` for eligibility with exclusion reasons, `field ISSUE NAME VALUE` for typed metadata, and `dependency list|add|remove ISSUE [PREREQUISITE]` for native prerequisites. Responsible role is distinct from GitHub account Assignees. Needed by and Forecast finish have different meanings.
+
+Before board migration or recovery, use `board-backup.sh snapshot` and retain the
+printed path. Option IDs carry item identity: never rebuild an existing option
+list from names. Use the provided helpers, which preserve IDs and back up writes.
+For recovery, run `board-backup.sh restore FILE --dry-run`, present the complete
+plan and blockers, and obtain explicit confirmation of that plan before applying
+with `--apply --confirm PROJECT_NODE_ID --plan CONFIRMATION_HASH` from the preview. Existing explicit approval of that exact
+repair suffices. Never infer missing historical statuses from issue closure.
+GitHub restore is not atomic; inspect the journal after failure and reconcile a
+fresh dry-run rather than replaying the whole operation. Backups are private local
+Git repositories scoped by host/owner/project number, retained until explicit cleanup.

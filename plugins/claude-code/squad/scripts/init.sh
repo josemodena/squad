@@ -83,6 +83,16 @@ EOL
   fi
 }
 
+# Route GraphQL through the bounded, header-aware rate-limit adapter.
+gh() {
+  if [ "${1:-}" = api ] && [ "${2:-}" = graphql ]; then
+    shift 2
+    python3 "$SCRIPT_DIR/board_backup.py" api "$@"
+  else
+    command gh "$@"
+  fi
+}
+
 # --- project helpers --------------------------------------------------------
 
 PROJECT_JSON=""
@@ -105,14 +115,15 @@ load_project() {
       $root(login: \$owner) {
         projectV2(number: \$number) {
           id title url
-          fields(first: 50) { nodes {
+          fields(first: 100) { pageInfo { hasNextPage } nodes {
             __typename
             ... on ProjectV2FieldCommon { id name }
-            ... on ProjectV2SingleSelectField { id name options { id name } }
+            ... on ProjectV2SingleSelectField { id name options { id name color description } }
           } }
         }
       }
     }")"
+  [ "$(printf '%s' "$raw" | jq -r --arg r "$root" '.data[$r].projectV2.fields.pageInfo.hasNextPage')" = false ] || squad_die "Field list incomplete; refusing migration."
   PROJECT_JSON="$(printf '%s' "$raw" | jq -c --arg r "$root" '{project: .data[$r].projectV2}')"
   PROJECT_ID="$(printf '%s' "$PROJECT_JSON" | jq -r '.project.id // empty')"
   [ -n "$PROJECT_ID" ] \
@@ -158,19 +169,15 @@ create_single_select() {
 }
 
 set_single_select_options() {
-  local name="$1" options="$2" fid literal
-  fid="$(field_id_of "$name")"
-  [ -n "$fid" ] || return 1
-  literal="$(options_literal "$options")"
-  [ -n "$literal" ] || return 0
-  gh api graphql -f query="
-    mutation {
-      updateProjectV2Field(input: {
-        fieldId: \"$fid\"
-        singleSelectOptions: [ $literal ]
-      }) { projectV2Field { ... on ProjectV2SingleSelectField { id } } }
-    }" >/dev/null
-  printf 'set the options of field %s\n' "$name"
+  local missing
+  missing="$(printf '%s' "$PROJECT_JSON" | jq --arg name "$1" --arg wanted "$2" '
+    ($wanted | split("\n") | map(select(length > 0))) -
+    [.project.fields.nodes[] | select(.name == $name) | .options[].name] | length')"
+  if [ "$missing" = 0 ]; then
+    printf 'field %s already has the required options; unchanged\n' "$1"
+    return 0
+  fi
+  bash "$SCRIPT_DIR/board-backup.sh" options "$1" --names "$2" --apply
 }
 
 create_simple_field() {
@@ -292,32 +299,19 @@ apply_fields() {
   else
     create_single_select "$SQUAD_STATUS_FIELD" "$SQUAD_STATUSES"
   fi
-  PROJECT_JSON=""; load_project
 
   field_exists "Track" || create_single_select "Track" "${SQUAD_TRACKS:-}"
-  PROJECT_JSON=""; load_project
   field_exists "Owner" || create_single_select "Owner" "${SQUAD_OWNERS:-}"
-  PROJECT_JSON=""; load_project
   field_exists "$SQUAD_ESTIMATE_FIELD" || create_simple_field "$SQUAD_ESTIMATE_FIELD" NUMBER
-  PROJECT_JSON=""; load_project
   field_exists "$SQUAD_SPRINT_FIELD" || create_single_select "$SQUAD_SPRINT_FIELD" "Sprint 1"
-  PROJECT_JSON=""; load_project
   field_exists "$SQUAD_NEEDED_BY_FIELD" || create_simple_field "$SQUAD_NEEDED_BY_FIELD" DATE
-  PROJECT_JSON=""; load_project
   field_exists "Responsible role" || create_single_select "Responsible role" $'administrator\nproject-manager\narchitect\nengineer\narchitecture-reviewer\nengineering-reviewer'
-  PROJECT_JSON=""; load_project
   field_exists "Stage" || create_single_select "Stage" $'planning\narchitecture\narchitecture-review\nengineering\nengineering-review\ndone'
-  PROJECT_JSON=""; load_project
   field_exists "Agreement" || create_single_select "Agreement" $'Proposed\nAgreed'
-  PROJECT_JSON=""; load_project
   field_exists "Design" || create_single_select "Design" $'Required\nApproved\nExisting'
-  PROJECT_JSON=""; load_project
   field_exists "Priority" || create_single_select "Priority" $'P0\nP1\nP2\nP3'
-  PROJECT_JSON=""; load_project
   field_exists "Forecast finish" || create_simple_field "Forecast finish" DATE
-  PROJECT_JSON=""; load_project
   field_exists "Estimate (hours)" || create_simple_field "Estimate (hours)" NUMBER
-  PROJECT_JSON=""; load_project
   field_exists "Iteration" || create_iteration_field "Iteration" "$iteration_start" "$iteration_days" "$iteration_count"
 }
 
@@ -428,6 +422,14 @@ cmd_apply() {
     iteration_start="$(date -u '+%Y-%m-%d')"
   fi
 
+  if [ -n "${SQUAD_PROJECT_NUMBER:-}" ]; then
+    local backup_record backup_path
+    backup_record="$(bash "$SCRIPT_DIR/board-backup.sh" guard --writes 20)"
+    printf '%s\n' "$backup_record"
+    backup_path="$(printf '%s' "$backup_record" | jq -r .snapshot)"
+    PROJECT_JSON="$(jq -c '{project: (.project + {fields: {nodes: .fields}})}' "$backup_path")"
+    PROJECT_ID="$(printf '%s' "$PROJECT_JSON" | jq -r .project.id)"
+  fi
   squad_say "Labels"
   apply_labels
   squad_say "Board fields"

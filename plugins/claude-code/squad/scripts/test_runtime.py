@@ -216,7 +216,7 @@ class RuntimeTest(unittest.TestCase):
         self.assertEqual(result['exit_code'],7)
         self.assertIn('failure evidence',Path(result['log']).read_text())
     def test_issue_creation_reuses_stable_key_after_lost_response(self):
-        with patch.object(sys,'argv',['runtime','issue-create','--key','task-1','--title','Task','--file',str(self.brief)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'pages',return_value=[{'number':42,'html_url':'https://example.test/42','body':'<!-- squad-key:task-1 -->'}]),patch.object(r,'run',return_value='') as command,contextlib.redirect_stdout(io.StringIO()) as output:
+        with patch.object(sys,'argv',['runtime','issue-create','--key','task-1','--title','Task','--file',str(self.brief)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'pages',return_value=[{'number':42,'html_url':'https://example.test/42','body':'<!-- squad-key:task-1 -->'}]),patch.object(r,'backup_board',return_value='snapshot'),patch.object(r,'run',return_value='') as command,contextlib.redirect_stdout(io.StringIO()) as output:
             r.main()
         self.assertEqual(json.loads(output.getvalue())['number'],42)
         self.assertEqual(command.call_count,1)

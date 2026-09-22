@@ -95,6 +95,8 @@ necessary for a particular harness/account combination.
 | Recovery services for multiple projects | Per-project systemd instances | One legacy conductor per OS user |
 | Idle-time and dispatch-delay measurements | Shared recorded observations | Shared recorded observations |
 | Model-free CLI for routine GitHub operations | Yes | Yes |
+| Local Git-versioned board backups, isolated per project | Yes | Yes |
+| Confirmed board restore with diff and interruption journal | Supported API fields/views; see limits | Supported API fields/views; see limits |
 | Linux | Supported runtime target | Supported runtime target |
 | macOS / native Windows | Not supported or validated | Not supported or validated |
 | Windows with WSL2 | Untested Linux route; systemd needed for recovery | Untested Linux route; systemd needed for recovery |
@@ -225,3 +227,6 @@ Squad is an independent community project, not an official OpenAI or Anthropic p
 
 Use an agreed specification to drive delivery with the
 [Spec-Driven Development guide](docs/guides/spec-driven-development.md).
+
+Before migrating or repairing a board, read the
+[board backup and recovery guide](docs/guides/board-backup.md).

@@ -207,29 +207,42 @@ def quota_read(config):
         return {'verdict': 'missing', 'reason': 'quota-unreadable', 'detail': p.stderr.strip()}
 
 
+def backup_board(config):
+    import board_backup as backup
+    api=backup.API();store=backup.Store(config)
+    with store.lock():
+        snapshot=backup.capture(api,config)
+        api.preflight(10)
+        return store.save(snapshot,'before-board-write')
+
+
 def field_set(config, issue, field, value):
-    item = next((i for i in board(config, dependencies=False) if i['number'] == issue), None)
-    if not item:
-        raise ValueError('issue is not on this project')
-    fields = gh('project', 'field-list', config['project_number'], '--owner', config['project_owner'], '--format', 'json', '--limit', '100')['fields']
-    entry = next((f for f in fields if f['name'] == field), None)
-    if not entry:
-        raise ValueError('missing field '+field+'; run init apply')
-    args = ['project', 'item-edit', '--id', item['item_id'], '--project-id', item['project_id'], '--field-id', entry['id']]
-    if 'options' in entry:
-        option = next((o for o in entry['options'] if o['name'] == value), None)
-        if not option: raise ValueError('unknown option for '+field)
-        args += ['--single-select-option-id', option['id']]
-    elif field in ('Needed by', 'Forecast finish'):
-        dt.date.fromisoformat(value)
-        args += ['--date', value]
-    elif field in ('Estimate (credits %)', 'Estimate (hours)'):
-        if not math.isfinite(float(value)) or float(value) < 0: raise ValueError('invalid estimate')
-        args += ['--number', value]
-    else:
-        args += ['--text', value]
-    run('gh', *args, json_output=False)
-    return {'issue': issue, 'field': field, 'value': value}
+    import board_backup as backup
+    api=backup.API();store=backup.Store(config)
+    with store.lock():
+        snapshot=backup.capture(api,config)
+        item=next((i for i in snapshot['items'] if i['content'].get('number')==issue
+                   and i['content'].get('repository',{}).get('nameWithOwner')==config['repository']),None)
+        entry=next((f for f in snapshot['fields'] if f['name']==field),None)
+        if not item or not entry: raise ValueError('Issue or field not found on project')
+        kind=entry['dataType']
+        if kind=='SINGLE_SELECT':
+            option=next((o for o in entry['options'] if o['name']==value),None)
+            if not option: raise ValueError('Unknown option for '+field)
+            new={'singleSelectOptionId':option['id']}
+        elif kind=='DATE':
+            dt.date.fromisoformat(value);new={'date':value}
+        elif kind=='NUMBER':
+            number=float(value)
+            if not math.isfinite(number): raise ValueError('Invalid number')
+            if field.startswith('Estimate') and number<0: raise ValueError('Invalid estimate')
+            new={'number':number}
+        elif kind=='TEXT': new={'text':value}
+        else: raise ValueError('Unsupported field type '+kind)
+        before=store.save(snapshot,'before-field')
+        args={'projectId':snapshot['project']['id'],'itemId':item['id'],'fieldId':entry['id'],'value':new}
+        backup.execute(api,store,{'blocked':[],'snapshot':before,'changes':[{'kind':'value','input':args}]})
+    return {'issue':issue,'field':field,'value':value,'snapshot':before}
 
 
 def checkpoint(job, source):
@@ -319,6 +332,7 @@ def main():
             else:
                 issue = gh('api','repos/'+config['repository']+'/issues','-f','title='+args.title,'-f','body='+body)
                 event(state,'issue-create',issue=issue['number'],key=args.key)
+            backup_board(config)
             run('gh','project','item-add',config['project_number'],'--owner',config['project_owner'],'--url',issue['html_url'],json_output=False)
             result = {'number':issue['number'],'url':issue['html_url'],'key':args.key}
     elif cmd == 'run':

@@ -133,3 +133,21 @@ avoidable idle time, reasons, completion-to-next-assignment delays and completed
 review assignment counts. Unknown historical intervals are not fabricated.
 Record pauses, provider exhaustion, external dependencies and available work
 separately. Account usage while jobs overlap is shared, not additive per-job cost.
+
+## Board data protection
+
+`bash ${PLUGIN_ROOT}/scripts/board-backup.sh snapshot` saves API-visible board data
+in local Git history. Use `${CLAUDE_PLUGIN_ROOT}` on Claude Code. `snapshot --dry-run`
+exports JSON only. `restore FILE --dry-run` produces the full proposed diff and
+blockers. Apply requires `--apply --confirm PROJECT_NODE_ID --plan CONFIRMATION_HASH`
+from that reviewed preview. `--status-only` restricts recovery to the configured
+Status field. A changed observed board invalidates confirmation.
+
+Snapshots and journals are private, retained by default, and separated by GitHub
+host/owner/project number beneath `board_backup_dir` or `<scratch_root>/board-backups`.
+They must not be pushed into a public source repository. Snapshot failure blocks
+protected writes. GitHub has no atomic whole-board restore; reconcile the journal
+and a fresh preview after any interruption. Deleted identities and unsupported
+view changes are blockers, not permission to recreate or guess them.
+
+See the [backup and recovery guide](https://github.com/josemodena/squad/blob/main/docs/guides/board-backup.md).
