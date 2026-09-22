@@ -49,6 +49,12 @@ squad init check
 An empty board is expected. If both harnesses are configured, use
 `squad --harness codex ...` or `squad --harness claude-code ...` explicitly.
 
+Before creating worktrees, inspect `git status` and the generated entry point,
+issue templates and ignore rules. Commit the intended shared setup through your
+repository's normal review process. Keep local settings and runtime data ignored.
+A new worktree sees committed files, not uncommitted setup in the original checkout.
+Do not start the first delivery cycle from a dirty setup tree.
+
 ## 3. Establish a real capacity reading
 
 ```bash

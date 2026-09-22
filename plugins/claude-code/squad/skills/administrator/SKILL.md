@@ -70,3 +70,9 @@ with durable recovery recorded. Human decisions should be precise issues with
 Needed by dates, not implicit waits hidden in prose.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
+
+If a required tool or capability is missing, report the exact blocker and remedy.
+Use existing installation authority when applicable; do not silently replace the
+toolchain during a validation run and report that retry as an initial pass.
+Task execution or testing authority alone does not waive quota policy. Honour
+an explicit existing waiver; otherwise keep the configured policy.

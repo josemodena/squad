@@ -22,6 +22,33 @@ and its harness argument. If an existing marketplace named `squad` points at a
 different source, use the harness's marketplace remove/add commands to choose
 one source deliberately, then rerun installation.
 
+## Install a fixed release
+
+The default clone follows main. For a fixed version, choose a tag from
+[GitHub Releases](https://github.com/josemodena/squad/releases) and use:
+
+```bash
+git clone --branch v0.4.2 --depth 1 https://github.com/josemodena/squad.git
+cd squad
+./install.sh codex                  # or claude-code
+```
+
+This checkout is detached at the tag. To update it, fetch and select the desired
+new release, then rerun the installer:
+
+```bash
+git fetch origin tag vNEXT_VERSION
+git checkout --detach vNEXT_VERSION
+./install.sh codex                  # or claude-code
+```
+
+Replace `vNEXT_VERSION` with a real release tag. Inspect local changes before
+switching versions. Alternatively, download the complete `source.tar.gz` release
+asset and verify it with the accompanying `SHA256SUMS`. Extract it to a durable
+directory and run its installer. An archive has no Git history, so update by
+replacing that directory's contents with the verified next release while no jobs
+are using it; keep its path stable for the CLI link and local marketplace.
+
 ## Plugin only, through the harness
 
 No Squad clone or CLI link is needed if you operate entirely through skills.
@@ -45,7 +72,7 @@ an existing conversation may remain from the old version.
 
 ## Update
 
-For a checkout installation:
+For a checkout following main (use the tag procedure above for fixed releases):
 
 ```bash
 cd /path/to/squad

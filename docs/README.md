@@ -12,6 +12,7 @@ install a recovery service for your first project.
 ## Guides
 
 - [Workflow, roles and continuation](guides/workflow.md)
+- [Spec-Driven Development integration](guides/spec-driven-development.md)
 - [Codex operation and recovery](guides/codex.md)
 - [Claude Code operation and recovery](guides/claude-code.md)
 - [Migration from older releases](guides/migration.md)
@@ -30,7 +31,7 @@ install a recovery service for your first project.
 - [Contributing](../CONTRIBUTING.md)
 - [Architecture and repository layout](development/architecture.md)
 - [Testing and live acceptance](development/acceptance.md)
-- [Releasing and public-repository preparation](development/releasing.md)
+- [Release process](development/releasing.md)
 - [Roadmap](development/roadmap.md)
 - [Licensing](development/licensing.md)
 - [Changelog](../CHANGELOG.md)

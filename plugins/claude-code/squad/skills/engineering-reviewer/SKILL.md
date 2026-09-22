@@ -23,3 +23,8 @@ marker and label, and does not emit a normal conductor event. Finish the named
 job with its durable report. The Administrator handles the native completion.
 
 Before long checks, checkpoint the named job and use `squad.sh run JOB -- COMMAND ARGS` so process identity, logs and exit status survive a lost model turn.
+
+Keep test artifacts out of the delivery tree. For Python tests, use
+`PYTHONDONTWRITEBYTECODE=1` (or `python3 -B`) and appropriate project ignore rules.
+Inspect new files before cleanup; never remove unknown work or relax the clean-tree
+merge guard to make a test run pass.

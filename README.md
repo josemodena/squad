@@ -23,7 +23,8 @@ expensive reasoning to work that needs it. **It does not increase provider limit
 guarantee lower costs, or replace your decisions about scope.**
 
 [Get started](docs/getting-started/quickstart.md) ·
-[Documentation](docs/README.md) · [Contribute](CONTRIBUTING.md) ·
+[Documentation](docs/README.md) · [Releases](https://github.com/josemodena/squad/releases) ·
+[Contribute](CONTRIBUTING.md) ·
 [Report a problem](https://github.com/josemodena/squad/issues/new/choose)
 
 ## When Squad helps
@@ -104,7 +105,7 @@ repository's default branch separately if server-side enforcement is required.
 
 ## Requirements
 
-- **Linux**, Bash 4+, Python 3.10+, Git, GitHub CLI (`gh`), `jq`, GNU coreutils,
+- **Linux**, Bash 4+, Python 3.10+, Git, GitHub CLI 2.46.0+ (`gh`), `jq`, GNU coreutils,
   `curl`, and `flock` (usually in `util-linux`).
 - **One harness:** Codex or Claude Code, installed and authenticated, with plugin
   and native subagent support. The development baseline is Codex 0.155.1 and
@@ -221,3 +222,6 @@ Squad’s original code and documentation are open source under the
 [Apache License 2.0](LICENSE). See [licensing](docs/development/licensing.md)
 for contribution terms and third-party components.
 Squad is an independent community project, not an official OpenAI or Anthropic product.
+
+Use an agreed specification to drive delivery with the
+[Spec-Driven Development guide](docs/guides/spec-driven-development.md).

@@ -1,50 +1,73 @@
-# Release and publication process
+# Release process
 
-## Prepare a release
+Stable Squad releases are published through
+[GitHub Releases](https://github.com/josemodena/squad/releases). A `vMAJOR.MINOR.PATCH`
+tag triggers the release workflow. Earlier changelog entries record development
+versions; 0.4.2 is the first GitHub release.
 
-1. Update VERSION, plugin manifests, Claude marketplace version and CHANGELOG.md.
-   Codex's native/portable manifests must have the same version. A Codex cache
-   suffix is permitted; its base must equal VERSION.
-2. Run `python3 tools/sync-package.py`. Both packages must be self-contained,
-   including their runtime reference and licence.
-3. Run `bash tools/test.sh`, validate the manifests with the installed harnesses,
-   and inspect the changed documentation and installation flow.
-4. Run the systemd integration test on a suitable Linux host and record live
-   acceptance evidence for changed native harness behaviour.
-5. Review source for private names/paths and credentials. Pattern checks are
-   useful but cannot prove absence. Do not publish test logs or runtime archives.
-6. Merge a reviewed change, tag the same commit and write release notes with
-   migration instructions. Publish source only until binary dependency notices
-   and reproducible build procedures are in place.
-7. Test marketplace installation from a clean account/home directory. Document
-   the tested CLI versions and any unverified platform assumptions.
+## Prepare and validate
 
-## Publish a fresh public snapshot
+1. Choose the next version. Update VERSION, plugin manifests, Claude marketplace
+   version and CHANGELOG.md. Codex native/portable versions must agree; the Codex
+   cache suffix is permitted, but the base must equal VERSION.
+2. Add `docs/releases/VERSION.md` with changes, installation/update instructions,
+   migration needs, validation evidence and known limits. Use absolute repository
+   links because the same Markdown becomes the GitHub release body.
+3. Run `python3 tools/sync-package.py`. Each plugin must include its runtime
+   reference, licence and notices. Run `bash tools/test.sh` and validate changed
+   manifests with the harness. Run appropriate live tests for changed native
+   behaviour; distinguish fixture coverage from a real model delivery cycle.
+4. Inspect the committed file list for private data and credentials. Do not include
+   runtime records, cold-test logs or private operational documents in artifacts.
+5. Open a PR, resolve review findings and wait for required CI. Merge the exact
+   tested head through the protected main branch.
 
-Use this when a private development repository's history must not become public.
-Do not make the old repository public and do not push its branches/tags to the new
-one. Renaming a private repository does not remove its history.
+## Tag and publish
 
-After committing and validating the intended snapshot:
+From a clean checkout of the merged main commit:
 
 ```bash
-python3 tools/export-public.py /path/to/new-public-checkout
+git switch main
+git pull --ff-only
+VERSION=$(cat VERSION)
+git tag -a "v$VERSION" -m "Squad $VERSION"
+git push origin "v$VERSION"
 ```
 
-The exporter uses `git archive HEAD`; it copies tracked release files only, without
-`.git`, ignored files, issues, PR discussions or commit metadata. It refuses a
-dirty source tree and an existing destination. Inspect the export, initialise an
-independent repository with a generic project author identity, and publish only
-its new initial commit. Do not import private issues or PR comments.
+The [release workflow](../../.github/workflows/release.yml) runs the full CI suite,
+checks that the tag matches VERSION and its commit belongs to main, and packages
+committed source only. A separate publishing job gets repository contents-write
+permission. It publishes:
 
-Before publishing, apply the owner's selected licence, confirm the intended
-repository visibility/name, and inspect the public file list. On GitHub configure
-Issues, private vulnerability reporting, dependency updates, Actions and branch
-rules. Give the new repository a clear description and topics. Keep the old
-repository private and update its local remote so it cannot accidentally push
-historical objects into the new public repository.
+- `squad-VERSION-source.tar.gz`: complete checkout with installer and short CLI.
+- `squad-VERSION-codex.tar.gz`: self-contained Codex plugin.
+- `squad-VERSION-claude-code.tar.gz`: self-contained Claude Code plugin.
+- `SHA256SUMS`: checksums for those three archives.
 
-Verify the public repository has exactly the expected new history, passes CI,
-has the correct licence and contains no old branches or tags. GitHub accounts
-and third-party dependency metadata are separate from source-file content; never
-remove legally required third-party notices to satisfy a cosmetic naming rule.
+GitHub additionally provides its standard source downloads. No prebuilt controller
+binaries are distributed. Plugin-only archives do not include the top-level CLI.
+
+## Verify and recover
+
+Watch the Release workflow and inspect the published tag, notes and assets:
+
+```bash
+gh run list --workflow release.yml
+gh release view "v$VERSION"
+mkdir -p /path/to/empty-release-check
+cd /path/to/empty-release-check
+gh release download "v$VERSION" --repo josemodena/squad
+sha256sum -c SHA256SUMS
+```
+
+Verify an extracted source installation and the packaged manifests. Marketplace
+installs following main may receive newer commits than a release; use a tagged
+source checkout when a fixed version is required. Keep the CLI checkout aligned
+with the installed plugin.
+
+If validation fails, no release is published. Fix via a reviewed PR and create a
+new patch tag; do not move an existing published tag. If publication fails after
+creating a release, inspect the existing assets before retrying. The workflow
+refuses to overwrite an existing release automatically. Complete a partial upload
+only after verifying it against the same tag; otherwise publish a corrected patch
+version. Never relabel an untested commit as a tested release.

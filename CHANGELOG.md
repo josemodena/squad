@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.4.2 — 2026-09-22
+
+- First tagged GitHub release, with automated validation, source packages and checksums.
+- Fix paginated GitHub operations on GitHub CLI 2.46.0 and check the minimum in doctor.
+- Add Spec-Driven Development guidance from agreed requirements through reviewed delivery.
+- Clarify committing setup before worktrees, clean test artifacts, prerequisite handling
+  and explicit quota-policy authority.
+- Refresh pinned CI actions after validating their updates.
+
 ## 0.4.1
 
 - Adopt Apache-2.0 for original Squad code and documentation.

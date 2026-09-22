@@ -9,7 +9,7 @@ another platform does not establish support for the complete workflow.
 | Component | Required for |
 | --- | --- |
 | Bash 4+, Python 3.10+ (standard library) | CLI, settings, durable runtime |
-| Git, GitHub CLI, jq | Repository, Issues and Project operations |
+| Git, GitHub CLI 2.46.0+, jq | Repository, Issues and Project operations |
 | GNU coreutils, util-linux (`flock`), curl | Shell helpers and release review |
 | Codex or Claude Code, authenticated | Model work, plugins, native subagents |
 | GitHub repository and Project v2 | Shared planning and tracking |
@@ -18,6 +18,9 @@ another platform does not establish support for the complete workflow.
 | Go 1.23+ | Build Codex's optional App Server controller |
 | Zellij | Claude Code's optional terminal recovery |
 | Claude usage collector | Fresh quota data for Claude capacity-aware dispatch |
+
+GitHub CLI 2.46.0 is the supported minimum, including paginated REST operations.
+`doctor` checks its version; board access still needs a live permission check.
 
 Development baselines: Codex 0.155.1, Claude Code 2.1.278. These versions were used
 for CLI and manifest checks; they are not established minimum versions. Harness

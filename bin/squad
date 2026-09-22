@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -87,13 +88,17 @@ def doctor(harness, args):
         result(subprocess.run(['date', '-u', '-d', '@0', '+%Y'], capture_output=True).returncode == 0, 'GNU date')
     if shutil.which('bash'):
         result(subprocess.run(['bash', '-c', '(( BASH_VERSINFO[0] >= 4 ))'], capture_output=True).returncode == 0, 'Bash >= 4')
+    if shutil.which('gh'):
+        version = subprocess.run(['gh', '--version'], capture_output=True, text=True)
+        match = re.match(r'gh version (\d+)\.(\d+)\.(\d+)', version.stdout)
+        result(bool(version.returncode == 0 and match and tuple(map(int, match.groups())) >= (2, 46, 0)),
+               'GitHub CLI >= 2.46.0 (upgrade gh if this check fails)')
     if '--offline' not in args and shutil.which('gh'):
         result(subprocess.run(['gh', 'auth', 'status', '-h', 'github.com'], capture_output=True).returncode == 0, 'GitHub CLI authentication (gh auth login)')
     if '--recovery' in args and shutil.which('systemctl'):
         result(subprocess.run(['systemctl', '--user', 'show-environment'], capture_output=True).returncode == 0, 'systemd user manager')
     if '--recovery' in args and harness == 'codex' and shutil.which('go'):
         version = subprocess.run(['go', 'env', 'GOVERSION'], capture_output=True, text=True).stdout.strip()
-        import re
         match = re.match(r'go(\d+)\.(\d+)', version)
         result(bool(match and tuple(map(int, match.groups())) >= (1, 23)), 'Go >= 1.23')
     settings = os.environ.get('SQUAD_SETTINGS')
