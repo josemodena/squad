@@ -32,5 +32,5 @@ install a recovery service for your first project.
 - [Testing and live acceptance](development/acceptance.md)
 - [Releasing and public-repository preparation](development/releasing.md)
 - [Roadmap](development/roadmap.md)
-- [Licence proposal](development/licensing.md)
+- [Licensing](development/licensing.md)
 - [Changelog](../CHANGELOG.md)
