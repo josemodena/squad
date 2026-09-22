@@ -89,3 +89,11 @@ this is `<scratch_root>/board-backups`. Squad appends the GitHub host and
 `<owner>-<project number>` so projects have separate histories and locks. Multiple
 local workers on the same board must use the same base. See
 [board backup and restore](../guides/board-backup.md) for retention and API limits.
+
+## Interactive meetings
+
+`project_manager_effort` defaults to `high` for direct planning/retrospective
+sessions. `meeting_zellij_session` optionally selects an existing Zellij session;
+otherwise the launcher uses `ZELLIJ_SESSION_NAME` from its environment. See the
+[meeting guide](../guides/meetings.md). Model selection uses the existing
+`project_manager_model`, independently for each harness.

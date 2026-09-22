@@ -6,6 +6,12 @@
 # handover. Compaction must not replace useful state with empty defaults.
 set -uo pipefail
 
+# A meeting neither renames the Administrator tab nor posts its handover/commits its files.
+if [ -n "${SQUAD_MEETING_ID:-}" ]; then
+  printf 'Squad meeting: preserve decisions and open questions in a meeting checkpoint.\n'
+  exit 0
+fi
+
 PLUGIN_ROOT="${PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 HANDOVER="$PLUGIN_ROOT/scripts/handover.sh"
 

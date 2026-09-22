@@ -151,3 +151,16 @@ and a fresh preview after any interruption. Deleted identities and unsupported
 view changes are blockers, not permission to recreate or guess them.
 
 See the [backup and recovery guide](https://github.com/josemodena/squad/blob/main/docs/guides/board-backup.md).
+
+## Direct Project Manager meetings
+
+Use `bash ${PLUGIN_ROOT}/scripts/meeting.sh start planning` (or `start retro`)
+in Codex; use `${CLAUDE_PLUGIN_ROOT}` in Claude Code. These create interactive
+main sessions in a new Zellij tab, with explicit configured model and effort.
+Do not use a subagent or relay the user's conversation. `checkpoint KIND --file
+NOTES [--session-id UUID]` saves durable context; `complete KIND --file OUTCOME`
+adds an external runtime event without changing pause state. Read these events
+through `recover` at coordination boundaries. Exact transcript resume needs a
+recorded native UUID; otherwise recovery uses checkpoint notes. `status KIND`
+shows the record and `reconcile KIND --reason TEXT` resolves a confirmed ended
+launch when its tab is absent. Meeting launches do not claim worker jobs.

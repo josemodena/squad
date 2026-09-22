@@ -56,6 +56,10 @@ GitHub stores the plan and delivery status. Local durable records store executio
 ownership, worker identities, checkpoints and unhandled results. See the
 [workflow guide](docs/guides/workflow.md) for responsibilities and failure cases.
 
+For planning and retrospectives, Squad can open a separate Zellij tab with the
+Project Manager and its configured model. You talk directly while the Administrator
+coordinates agreed work. See [direct meetings](docs/guides/meetings.md).
+
 ## Features and support
 
 **Shared** means both plugins ship the feature. **Role workflow** means agents
@@ -69,6 +73,7 @@ necessary for a particular harness/account combination.
 | Native plugin install and namespaced skills | Yes | Yes |
 | Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
+| Direct Project Manager conversations | New Zellij tab; explicit model/effort | New Zellij tab; explicit model/effort |
 | Conditional architecture and separate design review | Shared role workflow | Shared role workflow |
 | Test-driven engineering and separate code review | Shared role workflow | Shared role workflow |
 | Parallel native subagents | Yes; within harness limits | Yes; within harness limits |
@@ -117,6 +122,7 @@ repository's default branch separately if server-side enforcement is required.
 - Access to the models you configure. The default aliases below may not be
   available to every account; select supported models during setup.
 - Durable local storage for worktrees and runtime state, unique to each project.
+- **Direct planning/retro tabs:** Zellij with initial-command support for `action new-tab` (tested on 0.44.3).
 - **Optional recovery:** systemd user services; Go 1.23+ for Codex, or Zellij for
   Claude Code. Claude capacity-aware dispatch also needs a usage collector,
   which Squad does not bundle.

@@ -69,3 +69,10 @@ short command. Keep checkout and installed plugin versions aligned.
 export only. `board restore FILE --dry-run` reports differences and blockers.
 Apply requires `--apply --confirm PROJECT_NODE_ID --plan CONFIRMATION_HASH`; `--status-only` narrows scope.
 See [storage, multi-project isolation and recovery limits](../guides/board-backup.md).
+
+## Direct Project Manager meetings
+
+`squad meeting start planning|retro [--dry-run]` opens or focuses a Zellij tab.
+Use `meeting status KIND`, `meeting checkpoint KIND --file NOTES [--session-id UUID]`,
+`meeting complete KIND --file OUTCOME`, and `meeting reconcile KIND --reason TEXT`
+for recovery and handoff. See the [meeting guide](../guides/meetings.md).

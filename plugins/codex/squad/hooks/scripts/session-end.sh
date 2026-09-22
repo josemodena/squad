@@ -2,6 +2,12 @@
 # Optional terminal tab presentation; App Server thread/turn state owns lifecycle.
 set -uo pipefail
 
+# A meeting neither renames the Administrator tab nor posts its handover/commits its files.
+if [ -n "${SQUAD_MEETING_ID:-}" ]; then
+  :
+  exit 0
+fi
+
 [ -n "${ZELLIJ:-}" ] || exit 0
 command -v zellij >/dev/null 2>&1 || exit 0
 

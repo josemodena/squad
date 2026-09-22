@@ -15,7 +15,7 @@ def pairs():
         for name in ('LICENSE', 'NOTICE', 'THIRD_PARTY.md'):
             if (ROOT / name).exists():
                 yield ROOT / name, plugin / name
-    for name in ('squad_runtime.py', 'test_runtime.py', 'board_backup.py', 'test_board_backup.py'):
+    for name in ('squad_runtime.py', 'test_runtime.py', 'board_backup.py', 'test_board_backup.py', 'meeting.py'):
         yield ROOT / 'shared/runtime' / name, ROOT / 'plugins/codex/squad/scripts' / name
         yield ROOT / 'shared/runtime' / name, ROOT / 'plugins/claude-code/squad/scripts' / name
 
