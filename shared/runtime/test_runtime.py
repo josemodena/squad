@@ -70,6 +70,14 @@ class RuntimeTest(unittest.TestCase):
     def test_recovery_has_owned_blockers_for_agreed_exclusions(self):
         self.blocker();self.cli('ready');r=self.cli('recover')['readiness']
         self.assertIsNotNone(r['captured_at']);self.assertEqual(r['items'][0]['blockers'][0]['owner'],'Project owner')
+    def test_blocked_column_keeps_owned_waits_and_metadata_repairs_visible(self):
+        self.item['fields']['Status']='Blocked';self.blocker()
+        actions=self.cli('next')['actions']
+        self.assertTrue(any(a['action']=='request-user' for a in actions))
+        self.assertFalse(self.cli('ready')[0]['claimable'])
+        del self.item['fields']['Estimate (credits %)']
+        self.assertTrue(any(a['action']=='repair-metadata' for a in self.cli('next')['actions']))
+        self.assertEqual(self.item['fields']['Status'],'Blocked')
     def test_internal_repair_does_not_hide_parallel_user_blocker(self):
         self.blocker();del self.item['fields']['Estimate (credits %)']
         actions=self.cli('next')['actions']

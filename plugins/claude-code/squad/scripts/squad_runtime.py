@@ -220,7 +220,7 @@ def eligible(items, state, config, quota=None):
         records += [blockers.describe(reason,item,config) for reason in reasons]
         reasons = list(dict.fromkeys([r['reason'] for r in records]))
         repair_reasons={'missing-estimate','role-stage-mismatch','invalid-blocker-metadata','unresolved-blocker-label'}
-        repairable=f.get('Agreement')=='Agreed' and bool(set(reasons)&repair_reasons) and not state.get('paused') and not any(r in reasons for r in ('already-owned','closed','outside-active-work')) and (not quota or quota.get('verdict')=='run')
+        repairable=f.get('Agreement')=='Agreed' and bool(set(reasons)&repair_reasons) and not state.get('paused') and not item.get('archived') and f.get(config.get('status_field','Status')) in ('This sprint','In progress','In review','Blocked') and not any(r in reasons for r in ('already-owned','closed')) and (not quota or quota.get('verdict')=='run')
         answer.append({**item, 'role': role, 'stage': stage, 'eligible': not reasons, 'claimable':not reasons,
                        'reasons': reasons, 'blockers':records, 'requires_user':any(r['requires_user'] for r in records),
                        'next_actions':records, 'metadata_repair':{'owner':'project-manager','claimable':repairable,
@@ -463,7 +463,7 @@ def main():
                 if cmd=='next':
                     actions=[]
                     for i in result:
-                        if i.get('archived') or i['state'].upper()!='OPEN' or 'outside-active-work' in i['reasons']:continue
+                        if i.get('archived') or i['state'].upper()!='OPEN' or ('outside-active-work' in i['reasons'] and i['fields'].get(config.get('status_field','Status'))!='Blocked'):continue
                         if i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
                         elif i.get('metadata_repair') and i['metadata_repair']['claimable']:
                             actions.append({'issue':i['number'],'action':'repair-metadata',**i['metadata_repair'],'requires_user':False})
