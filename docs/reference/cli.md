@@ -62,3 +62,10 @@ installation can start services unless you pass `--no-enable`.
 The short command uses the local Squad checkout linked at installation time.
 Inside an installed plugin, skills can use bundled scripts directly without the
 short command. Keep checkout and installed plugin versions aligned.
+
+## Board backup and restore
+
+`board snapshot` saves a private, local Git-versioned export; `--dry-run` prints the
+export only. `board restore FILE --dry-run` reports differences and blockers.
+Apply requires `--apply --confirm PROJECT_NODE_ID --plan CONFIRMATION_HASH`; `--status-only` narrows scope.
+See [storage, multi-project isolation and recovery limits](../guides/board-backup.md).

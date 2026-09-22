@@ -8,7 +8,9 @@
    into architecture and engineering. Old Claude agent files are replaced.
 3. Add the six role-model keys from the settings template and max_workers (default
    3). Set continuation_mode: native. Keep project-specific scope and decisions.
-4. Run `squad init apply` to add new Project fields. Existing issue plans, labels,
+4. Take a versioned `squad board snapshot` first (see [board recovery](board-backup.md)).
+   `squad init apply` also refuses board writes unless its fresh backup succeeds.
+   Existing option IDs and metadata must be preserved. Run `squad init apply` to add new Project fields. Existing issue plans, labels,
    dates and Owner fields are retained. Explicitly classify existing agreed work
    with Agreement, Design, Stage and Responsible role; migration never invents
    user agreement. Use native dependency commands for prerequisites.

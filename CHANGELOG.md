@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.4.3 — 2026-09-22
+
+- Fix Status migration and Sprint-option creation dropping existing option IDs,
+  colours and descriptions, which could clear populated item values.
+- Save local Git-versioned board snapshots before migration, option updates and
+  board writes, isolated by GitHub host, owner and project number.
+- Add paginated board exports and confirmed restore previews with state hashes,
+  rate-budget preflight, bounded backoff and durable interruption journals.
+- Restore supported item values and view settings; explicitly block unsupported
+  differences, deleted identities and incomplete snapshots.
+- Document private backup storage, retention, multi-project operation and recovery
+  limits. GitHub does not provide atomic whole-board restoration.
+
 ## 0.4.2 — 2026-09-22
 
 - First tagged GitHub release, with automated validation, source packages and checksums.

@@ -119,3 +119,14 @@ Use existing installation authority when applicable; do not silently replace the
 toolchain during a validation run and report that retry as an initial pass.
 Task execution or testing authority alone does not waive quota policy. Honour
 an explicit existing waiver; otherwise keep the configured policy.
+
+Before board migration or recovery, use `board-backup.sh snapshot` and retain the
+printed path. Option IDs carry item identity: never rebuild an existing option
+list from names. Use the provided helpers, which preserve IDs and back up writes.
+For recovery, run `board-backup.sh restore FILE --dry-run`, present the complete
+plan and blockers, and obtain explicit confirmation of that plan before applying
+with `--apply --confirm PROJECT_NODE_ID --plan CONFIRMATION_HASH` from the preview. Existing explicit approval of that exact
+repair suffices. Never infer missing historical statuses from issue closure.
+GitHub restore is not atomic; inspect the journal after failure and reconcile a
+fresh dry-run rather than replaying the whole operation. Backups are private local
+Git repositories scoped by host/owner/project number, retained until explicit cleanup.

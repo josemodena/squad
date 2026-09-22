@@ -10,6 +10,7 @@ python3 -m unittest discover -s tests -v
 for harness in codex claude-code; do
   plugin="plugins/$harness/squad"
   python3 "$plugin/scripts/test_runtime.py"
+  python3 "$plugin/scripts/test_board_backup.py"
   bash "$plugin/scripts/selftest.sh"
   bash "$plugin/scripts/test-finish-guards.sh"
 done

@@ -17,6 +17,8 @@ Start here:
   doctor [--offline] [--recovery]  Check tools, configuration and GitHub login
   init check|apply|create-board   Inspect or provision project tracking
   board                          Show the GitHub Project board
+  board snapshot [--dry-run]      Save versioned local backup or export JSON
+  board restore FILE [OPTIONS]   Preview restore; apply needs project ID and plan hash
   status                         Show unfinished work and effective policy
   ready                          Explain which items can be dispatched
   models                         Show the six configured role models
@@ -143,6 +145,8 @@ def main():
     scripts = ROOT / 'plugins' / harness / 'squad' / 'scripts'
     if not scripts.is_dir():
         fail('installation moved; rerun install.sh from a complete Squad checkout')
+    if command == 'board' and rest and rest[0] in ('snapshot','restore','options'):
+        os.execvp('bash',['bash',str(scripts/'board-backup.sh'),*rest])
     targets = {'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
                'runtime': 'runtime.sh', 'session': 'conductor-session.sh'}
     if command == 'session' and harness != 'codex':
