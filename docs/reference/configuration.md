@@ -97,3 +97,6 @@ sessions. `meeting_zellij_session` optionally selects an existing Zellij session
 otherwise the launcher uses `ZELLIJ_SESSION_NAME` from its environment. See the
 [meeting guide](../guides/meetings.md). Model selection uses the existing
 `project_manager_model`, independently for each harness.
+
+`decider` names the user in readiness requests; `decider_label` remains configurable.
+`metadata_repair_estimate` defaults to 0.5 weekly percentage points for a bounded PM repair headroom check. See [owned blockers](../guides/blockers.md).

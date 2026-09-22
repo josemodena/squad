@@ -73,6 +73,7 @@ necessary for a particular harness/account combination.
 | Native plugin install and namespaced skills | Yes | Yes |
 | Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
+| Owned blockers and continuation | Visible user requests, PM repairs, guarded claims | Visible user requests, PM repairs, guarded claims |
 | Direct Project Manager conversations | New Zellij tab; explicit model/effort | New Zellij tab; explicit model/effort |
 | Conditional architecture and separate design review | Shared role workflow | Shared role workflow |
 | Test-driven engineering and separate code review | Shared role workflow | Shared role workflow |

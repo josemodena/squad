@@ -46,10 +46,15 @@ owner must be ones this project has; `squad.sh settings` lists them.
   intention.
 - Scope found in the middle of a piece becomes a new issue in Backlog. It is
   never absorbed into the piece in hand.
-- A blocker is the `blocked` label plus a comment naming what is needed, from
-  whom and by when. It is a precise ask, never "not ours".
-- Something only the Decider can do carries the decider label, sits in "This
-  sprint", and has a Needed by date set with `squad.sh needed-by`.
+- A blocker is a structured record written with `blocker.sh set ISSUE --file JSON`:
+  category, owner, exact next action, why, PM recommendation, evidence and whether
+  the user is needed. It is visible in the issue and through board labels.
+- User-owned actions have an orange `🟠 needs-your-action` label and the configured
+  decider label. Use `blocker.sh visibility` to show Labels in existing views.
+  Preserve explicit Status on existing cards. Separately agreed user-action cards
+  may use the existing Blocked column; do not create another column.
+- Resolve only using actual input/authority evidence through `blocker.sh resolve`;
+  never infer permission from quota policy or infer completion from issue closure.
 - Quota readings are comments on the sprint issue, never commits.
 
 Use `squad.sh ready` for eligibility with exclusion reasons, `field ISSUE NAME VALUE` for typed metadata, and `dependency list|add|remove ISSUE [PREREQUISITE]` for native prerequisites. Responsible role is distinct from GitHub account Assignees. Needed by and Forecast finish have different meanings.

@@ -76,3 +76,5 @@ See [storage, multi-project isolation and recovery limits](../guides/board-backu
 Use `meeting status KIND`, `meeting checkpoint KIND --file NOTES [--session-id UUID]`,
 `meeting complete KIND --file OUTCOME`, and `meeting reconcile KIND --reason TEXT`
 for recovery and handoff. See the [meeting guide](../guides/meetings.md).
+
+See [owned blockers and continuation](../guides/blockers.md) for `next`, `blocker`, `repair-claim`, claim assessments and mandatory handoffs.

@@ -36,7 +36,7 @@ pause always blocks dispatch. Unknown metadata fails visibly rather than guessin
 
 ```bash
 squad claim job-42-engineer-1 --issue 42 --role engineer \
-  --worktree /path/to/worktree --brief /path/to/brief.md
+  --worktree /path/to/worktree --brief /path/to/brief.md --readiness /path/to/assessment.json
 squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-5.6-sol \
   --thread THREAD_ID --turn TURN_ID --rollout /path/to/rollout.jsonl
 squad checkpoint job-42-engineer-1 --file /path/to/checkpoint-input.json
@@ -164,3 +164,18 @@ through `recover` at coordination boundaries. Exact transcript resume needs a
 recorded native UUID; otherwise recovery uses checkpoint notes. `status KIND`
 shows the record and `reconcile KIND --reason TEXT` resolves a confirmed ended
 launch when its tab is absent. Meeting launches do not claim worker jobs.
+
+## Owned blockers and continuation
+
+`next` returns dispatches, bounded PM repairs and named external waits. `ready`
+returns `claimable`, `blockers` (category, owner, next action, requires_user) and
+`metadata_repair`. `repair-claim JOB --issue N --worktree PATH --brief FILE` assigns
+existing-scope metadata maintenance to the PM without claiming blocked delivery.
+Use `handoff JOB --file JSON` before `ack JOB`; completed/not-completed, evidence,
+next action, owner, fresh-job permission, transition and tracking are mandatory.
+`recover` exposes timestamped last-read exclusions. See the full guide in the
+repository at `docs/guides/blockers.md`.
+
+Bundled blocker commands are `bash ${PLUGIN_ROOT}/scripts/blocker.sh set ISSUE
+--file JSON`, `resolve ISSUE --id ID --file RESOLUTION`, and `visibility`; Claude
+uses `${CLAUDE_PLUGIN_ROOT}`. They preserve Status and back up before writes.

@@ -59,3 +59,17 @@ idempotent durable event for the Administrator and does not change pause policy.
 An interrupted meeting is not a completed or approved plan. Direct meetings have
 no worker claim: the checkpoint/complete JOB instructions above apply only to
 bounded delegated maintenance, such as updating a forecast during execution.
+
+## Owned repairs and user requests
+
+Treat missing estimates, stage or role as immediate bounded metadata repair work.
+Use current evidence to estimate remaining delivery within existing agreed scope;
+label forecasts as provisional where appropriate. Do not send clerical repairs to
+the user. Missing agreement requires recovering an actual existing decision or
+presenting a precise scope decision, never inventing approval.
+
+For every user blocker write a short plain-English request: what the user should
+do, why it is needed, your recommendation and the consequence of waiting. Check
+whether prior authority was consumed or superseded before asking again. Mark user
+requests prominently through the blocker CLI; avoid technical evidence requirements
+that agents can package themselves after the user supplies the genuine input.
