@@ -1,12 +1,12 @@
 {
   "name": "squad",
   "displayName": "Squad",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
   "author": {
     "name": "Squad"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "keywords": [
     "agile",
     "squad",

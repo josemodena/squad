@@ -12,7 +12,7 @@ def pairs():
         plugin = ROOT / 'plugins' / harness / 'squad'
         for name in ('runtime.md',):
             yield ROOT / 'docs/reference' / name, plugin / 'docs' / name
-        for name in ('LICENSE', 'NOTICE'):
+        for name in ('LICENSE', 'NOTICE', 'THIRD_PARTY.md'):
             if (ROOT / name).exists():
                 yield ROOT / name, plugin / name
     for name in ('squad_runtime.py', 'test_runtime.py'):

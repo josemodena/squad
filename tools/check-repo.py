@@ -26,7 +26,7 @@ for marketplace, harness, manifest in marketplaces:
     metadata = json.loads((plugin/manifest).read_text())
     check(metadata['name'] == plugin.name == 'squad', str(plugin)+': name mismatch')
     check(metadata['version'].split('+')[0] == version, str(plugin)+': version mismatch')
-    check(metadata['license'] == ('Apache-2.0' if (ROOT/'LICENSE').exists() else 'UNLICENSED'), str(plugin)+': license mismatch')
+    check(metadata['license'] == 'Apache-2.0', str(plugin)+': license mismatch')
     if harness == 'codex':
         check(json.loads((plugin/'plugin.json').read_text())['version'] == metadata['version'], 'Codex manifest versions differ')
     else:
@@ -68,7 +68,7 @@ for path in files:
         if target:
             check((path.parent/target).exists(), str(path.relative_to(ROOT))+': broken link '+link)
 
-for required in ['README.md','CONTRIBUTING.md','CODE_OF_CONDUCT.md','SECURITY.md','SUPPORT.md','CHANGELOG.md','docs/README.md']:
+for required in ['README.md','CONTRIBUTING.md','CODE_OF_CONDUCT.md','SECURITY.md','SUPPORT.md','CHANGELOG.md','LICENSE','NOTICE','docs/README.md']:
     check((ROOT/required).exists(), 'missing '+required)
 if errors:
     print('\n'.join(errors),file=sys.stderr)
