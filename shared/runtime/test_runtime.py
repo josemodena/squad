@@ -70,6 +70,11 @@ class RuntimeTest(unittest.TestCase):
     def test_recovery_has_owned_blockers_for_agreed_exclusions(self):
         self.blocker();self.cli('ready');r=self.cli('recover')['readiness']
         self.assertIsNotNone(r['captured_at']);self.assertEqual(r['items'][0]['blockers'][0]['owner'],'Project owner')
+    def test_internal_repair_does_not_hide_parallel_user_blocker(self):
+        self.blocker();del self.item['fields']['Estimate (credits %)']
+        actions=self.cli('next')['actions']
+        self.assertTrue(any(a['action']=='repair-metadata' for a in actions))
+        self.assertTrue(any(a['action']=='request-user' for a in actions))
     def test_unagreed_scope_cannot_be_claimed_as_pm_repair(self):
         self.config['project_manager_model']='astra'
         del self.item['fields']['Agreement']

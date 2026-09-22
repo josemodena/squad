@@ -467,6 +467,7 @@ def main():
                         if i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
                         elif i.get('metadata_repair') and i['metadata_repair']['claimable']:
                             actions.append({'issue':i['number'],'action':'repair-metadata',**i['metadata_repair'],'requires_user':False})
+                            actions.extend({'issue':i['number'],'action':'request-user',**b} for b in i['blockers'] if b['requires_user'])
                         else:
                             actions.extend({'issue':i['number'],'action':'request-user' if b['requires_user'] else 'resolve-or-wait',**b} for b in i['blockers'])
                     result={'actions':actions,'can_continue':any(a['action'] in ('dispatch','repair-metadata') for a in actions),
