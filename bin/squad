@@ -19,6 +19,8 @@ Start here:
   board                          Show the GitHub Project board
   board snapshot [--dry-run]      Save versioned local backup or export JSON
   board restore FILE [OPTIONS]   Preview restore; apply needs project ID and plan hash
+  meeting start planning|retro   Open a direct Project Manager conversation in Zellij
+  meeting status planning|retro  Inspect the meeting record
   status                         Show unfinished work and effective policy
   ready                          Explain which items can be dispatched
   models                         Show the six configured role models
@@ -39,7 +41,7 @@ Advanced:
 Other tracker/runtime commands pass through unchanged (e.g. dependency, field,
 claim, checkpoint, recover, metrics). Run inside a configured project. If both
 harnesses are configured, select --harness explicitly. No command invokes a
-model except the explicit managed-session attach/recovery operations.
+model except explicit meeting launches and managed-session attach/recovery operations.
 '''
 
 
@@ -148,7 +150,7 @@ def main():
     if command == 'board' and rest and rest[0] in ('snapshot','restore','options'):
         os.execvp('bash',['bash',str(scripts/'board-backup.sh'),*rest])
     targets = {'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
-               'runtime': 'runtime.sh', 'session': 'conductor-session.sh'}
+               'runtime': 'runtime.sh', 'meeting': 'meeting.sh', 'session': 'conductor-session.sh'}
     if command == 'session' and harness != 'codex':
         fail('managed session commands are available only for Codex')
     if command == 'conductor':

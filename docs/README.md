@@ -36,3 +36,5 @@ install a recovery service for your first project.
 - [Roadmap](development/roadmap.md)
 - [Licensing](development/licensing.md)
 - [Changelog](../CHANGELOG.md)
+
+- [Direct planning and retrospective meetings](guides/meetings.md)

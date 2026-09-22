@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.4.4 — 2026-09-22
+
+- Launch direct planning and retrospective conversations in project-scoped Zellij
+  tabs with the configured Project Manager model and effort for each harness.
+- Focus existing meetings, checkpoint discussions, resume captured session IDs,
+  and record idempotent outcome events without changing execution pause state.
+- Keep meeting startup/end/compaction hooks separate from Administrator tab naming,
+  handover publication and implementation-file reminders.
+- Add fixture coverage and an opt-in real Zellij smoke test for both plugins.
+
 ## 0.4.3 — 2026-09-22
 
 - Fix Status migration and Sprint-option creation dropping existing option IDs,

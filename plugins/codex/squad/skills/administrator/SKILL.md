@@ -13,7 +13,7 @@ You own coordination and continuation. Read project instructions, settings and
 owns execution records. The handover adds narrative, never a mandatory wake token.
 
 Run this role in the main harness session, never as a nested Claude subagent.
-Use a fresh subagent for each bounded assignment. Delegate Project Manager,
+Use a fresh subagent for each bounded assignment. Delegate bounded Project Manager maintenance,
 Architect, Engineer and independent Reviewer work using the configured model
 from `squad.sh models`; explicitly set the model at spawn. Do not inherit your
 model into other roles. Claude uses its Agent tool; Codex uses its native
@@ -87,3 +87,17 @@ repair suffices. Never infer missing historical statuses from issue closure.
 GitHub restore is not atomic; inspect the journal after failure and reconcile a
 fresh dry-run rather than replaying the whole operation. Backups are private local
 Git repositories scoped by host/owner/project number, retained until explicit cleanup.
+
+## Planning and retrospective conversations
+
+For a user request to plan or run a retrospective, launch a direct main-session
+Project Manager meeting with `bash ${PLUGIN_ROOT}/scripts/meeting.sh start planning`
+or `start retro`. Do not spawn a subagent for that conversation or relay messages.
+Use the returned tab and model information to tell the user where the meeting is.
+Repeated requests focus the existing tab. A failed or ambiguous launch is not
+permission to create duplicates; use `meeting.sh status` and reconcile evidence.
+Continue already agreed execution unless the user pauses it. Only the Project
+Manager records agreed scope. Read meeting completion events through `squad.sh
+recover` at coordination boundaries and before settling events; read the linked
+outcome and refresh ready work. These durable events are not native subagent
+completion messages. An idle conductor can discover them through existing recovery.

@@ -5,6 +5,20 @@ description: This skill should be used when the user asks to "run sprint plannin
 
 # Sprint planning
 
+## Direct meeting entry
+
+When invoked in an Administrator session, run
+`bash ${PLUGIN_ROOT}/scripts/meeting.sh start planning`
+and let the user converse in the new Zellij tab. Do not relay the discussion or
+perform it using the Administrator model. The launcher selects the configured
+Project Manager model and effort. If Zellij is unavailable, report its precise
+setup error; do not substitute a subagent conversation.
+
+When already in the direct Project Manager meeting (`SQUAD_MEETING_ID` is set),
+continue here without launching another session. Checkpoint the conversation
+using `meeting.sh checkpoint`, and call `meeting.sh complete` with the durable
+outcome only when the user concludes it. Unagreed proposals remain proposals.
+
 Act as the Project Manager using the configured model.
 
 A sprint is one week and shares its clock with the subscription. It starts and

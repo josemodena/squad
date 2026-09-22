@@ -14,6 +14,12 @@ set -uo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SCRIPTS="$PLUGIN_ROOT/scripts"
 
+# Direct meetings have their own identity and must not masquerade as the Administrator.
+if [ -n "${SQUAD_MEETING_ID:-}" ]; then
+  python3 "$SCRIPTS/meeting.py" _hook
+  exit $?
+fi
+
 printf 'Squad session start\n\n'
 
 # --- the quota --------------------------------------------------------------

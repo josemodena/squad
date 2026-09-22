@@ -4,6 +4,12 @@
 # dirty tree, and the person is the one who decides which it is.
 set -uo pipefail
 
+# A meeting neither renames the Administrator tab nor posts its handover/commits its files.
+if [ -n "${SQUAD_MEETING_ID:-}" ]; then
+  :
+  exit 0
+fi
+
 cat >/dev/null 2>&1 || true   # drain the hook's JSON input
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || true)"

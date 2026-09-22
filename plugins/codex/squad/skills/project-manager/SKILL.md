@@ -40,3 +40,22 @@ Use existing installation authority when applicable; do not silently replace the
 toolchain during a validation run and report that retry as an initial pass.
 Task execution or testing authority alone does not waive quota policy. Honour
 an explicit existing waiver; otherwise keep the configured policy.
+
+## Direct conversations and delegated maintenance
+
+Planning and retrospective meetings run as a main session in their own Zellij
+tab, using the configured Project Manager model and effort. Speak directly with
+the user. Do not launch another meeting or become the Administrator. Read the
+meeting record supplied in the initial prompt, including prior checkpoints.
+Checkpoint decisions, alternatives and unresolved questions throughout the
+conversation, not just at its end. Record the exact native session UUID when
+available with `meeting.sh checkpoint KIND --file NOTES --session-id UUID`;
+never guess it or use the Administrator's session ID.
+
+When the user concludes the meeting, persist agreed project changes through the
+tracker, then call `meeting.sh complete KIND --file OUTCOME`. Include links to
+updated records and clearly separate agreement from proposals. This writes an
+idempotent durable event for the Administrator and does not change pause policy.
+An interrupted meeting is not a completed or approved plan. Direct meetings have
+no worker claim: the checkpoint/complete JOB instructions above apply only to
+bounded delegated maintenance, such as updating a forecast during execution.
