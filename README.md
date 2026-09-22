@@ -72,6 +72,7 @@ necessary for a particular harness/account combination.
 | --- | --- | --- |
 | Native plugin install and namespaced skills | Yes | Yes |
 | Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
+| Read-only model upgrade discovery | Catalogue suggestions via `models --check-upgrades` | No automatic discovery; native alias verification |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
 | Owned blockers and continuation | Visible user requests, PM repairs, guarded claims | Visible user requests, PM repairs, guarded claims |
 | Direct Project Manager conversations | New Zellij tab; explicit model/effort | New Zellij tab; explicit model/effort |
@@ -117,7 +118,8 @@ repository's default branch separately if server-side enforcement is required.
   `curl`, and `flock` (usually in `util-linux`).
 - **One harness:** Codex or Claude Code, installed and authenticated, with plugin
   and native subagent support. The development baseline is Codex 0.155.1 and
-  Claude Code 2.1.278; these are tested CLI versions, not proven minimum versions.
+  Claude Code 2.1.280; these are CLI-check baselines, not universal minimums.
+  **Opus 5.5 specifically requires Claude Code 2.1.280 or later.**
 - A GitHub repository and a **GitHub Project v2**, with permission to manage its
   issues, pull requests and fields. Setup can create a board.
 - Access to the models you configure. The default aliases below may not be
