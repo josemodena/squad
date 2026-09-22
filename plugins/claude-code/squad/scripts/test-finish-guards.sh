@@ -11,11 +11,11 @@ set -uo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GITW="$PLUGIN_ROOT/scripts/gitw.sh"
-ROOT="${TMPDIR:-/tmp}/squad-finish-guard-test"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/squad-finish-guard-test-XXXXXX")"
+trap 'rm -rf "$ROOT"' EXIT
 BIN="$ROOT/bin"
 FAILURES=0
 
-rm -rf "$ROOT"
 mkdir -p "$BIN"
 
 cat > "$BIN/ssh" <<'FAKESSH'
@@ -59,7 +59,7 @@ setup() {
   export FAKE_SSH_BARE="$case_dir/origin.git"
   export GH_LOG="$case_dir/gh-calls.log"
   : > "$GH_LOG"
-  git init -q --bare "$FAKE_SSH_BARE"
+  git init -q --bare -b main "$FAKE_SSH_BARE"
   git init -q -b main "$REPO"
   mkdir -p "$REPO/.claude"
   cat > "$REPO/.claude/squad.local.md" <<'SETTINGS'
