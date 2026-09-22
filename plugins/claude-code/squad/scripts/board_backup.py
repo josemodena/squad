@@ -310,6 +310,8 @@ def plan_restore(saved,current,status_only=False,status_field='Status'):
         for fid in sorted(scope & (a.keys()|b.keys())):
             av,bv=a.get(fid),b.get(fid)
             if av==bv: continue
+            if oldfields[fid]['dataType'] not in ('TEXT','NUMBER','DATE','SINGLE_SELECT','MULTI_SELECT','ITERATION'):
+                blocked.append('Derived/read-only field differs on '+iid+': '+oldfields[fid]['name']);continue
             value=value_input(av) if av else None
             if av and value is None:
                 blocked.append('Read-only/unsupported field differs on item '+iid+': '+oldfields[fid]['name']);continue

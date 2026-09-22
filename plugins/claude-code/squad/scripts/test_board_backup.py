@@ -145,6 +145,28 @@ class BoardBackup(unittest.TestCase):
         saved=fixture();saved['items'][0]['fieldValues']['nodes'][0]['optionId']='UNKNOWN'
         current=fixture();current['items'][0]['fieldValues']=conn([])
         self.assertTrue(b.plan_restore(saved,current)['blocked'])
+    def test_derived_title_change_blocks_all_writes(self):
+        saved=fixture()
+        field={'id':'TITLE','name':'Title','dataType':'TITLE','__typename':'ProjectV2Field'}
+        saved['fields'].append(field)
+        saved['items'][0]['fieldValues']['nodes'].append({'__typename':'ProjectV2ItemFieldTextValue','field':field,'text':'old'})
+        current=copy.deepcopy(saved);current['items'][0]['fieldValues']['nodes'][-1]['text']='new'
+        self.assertTrue(b.plan_restore(saved,current)['blocked'])
+    def test_routine_field_write_saves_backup_and_preserves_option_identity(self):
+        import squad_runtime as runtime
+        api=FakeAPI();api.state['items'][0]['content']['repository']={'nameWithOwner':'example/demo'}
+        with patch.object(b,'API',return_value=api):
+            result=runtime.field_set({**self.config,'repository':'example/demo'},1,'Status','Backlog')
+        self.assertTrue(Path(result['snapshot']).is_file())
+        self.assertEqual(api.state['items'][0]['fieldValues']['nodes'][0]['optionId'],'OPT2')
+        self.assertEqual(api.state['fields'][0]['options'],fixture()['fields'][0]['options'])
+    def test_routine_field_write_refuses_failed_backup(self):
+        import squad_runtime as runtime
+        api=FakeAPI()
+        with patch.object(b,'API',return_value=api),patch.object(b,'capture',side_effect=ValueError('snapshot failed')):
+            with self.assertRaisesRegex(ValueError,'snapshot failed'):
+                runtime.field_set(self.config,1,'Status','Backlog')
+        self.assertFalse(api.calls)
     def test_missing_item_blocks_complete_restore(self):
         saved=fixture();current=copy.deepcopy(saved);current['items']=[]
         self.assertTrue(b.plan_restore(saved,current)['blocked'])
