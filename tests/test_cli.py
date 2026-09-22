@@ -27,12 +27,35 @@ class CLI(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('doctor', result.stdout)
     def test_infers_both_role_maps(self):
-        for harness, model in [('codex','gpt-5.6-luna'),('claude-code','sonnet')]:
+        for harness, model in [('codex','gpt-6-luna'),('claude-code','sonnet')]:
             with self.subTest(harness=harness):
                 self.config(harness)
                 result = self.run_cli('--harness', harness, 'models')
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout)['administrator'], model)
+    def test_upgrade_check_is_read_only_and_preserves_project_override(self):
+        self.config('codex')
+        config = self.project/'.codex/squad.local.md'
+        config.write_text(config.read_text().replace('repository:', 'engineer_model: legacy-model\nrepository:'))
+        original = config.read_bytes()
+        fake = Path(self.tmp.name)/'fake'; fake.mkdir()
+        codex = fake/'codex'
+        codex.write_text('#!/usr/bin/env python3\nimport json,sys\nassert sys.argv[1:]==["debug","models"]\nprint(json.dumps({"models":[{"slug":"legacy-model","upgrade":{"model":"new-model"}},{"slug":"new-model"}]}))\n')
+        codex.chmod(0o755)
+        self.env['PATH'] = str(fake)+os.pathsep+self.env['PATH']
+        result = self.run_cli('models', '--check-upgrades')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['roles']['engineer']['suggested_model'], 'new-model')
+        self.assertEqual(config.read_bytes(), original)
+        self.assertFalse((Path(self.tmp.name)/'state').exists())
+
+    def test_claude_upgrade_check_explains_alias_limit(self):
+        self.config('claude-code')
+        result = self.run_cli('models', '--check-upgrades')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['status'], 'unsupported')
+
     def test_auto_detect_and_reject_ambiguity(self):
         self.config('codex')
         self.assertEqual(self.run_cli('models').returncode, 0)

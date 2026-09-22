@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.4.6 — 2026-09-22
+
+- Upgrade Codex defaults and new-project templates to GPT-6-Luna and GPT-6-Sol.
+- Add read-only model upgrade discovery from the Codex catalogue, preserving
+  custom settings, unfinished jobs and recorded execution models.
+- Document Sonnet 5, Fable 5.1 and Opus 5.5 alias mappings, harness requirements
+  and safe model changes between jobs and Administrator sessions.
+
 ## 0.4.5 — 2026-09-22
 
 - Make readiness exclusions actionable with blocker categories, named owners,

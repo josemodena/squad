@@ -48,3 +48,6 @@ Use `squad git` for the Git wrapper and `squad conductor install` for recovery.
 Existing script entry points still exist inside their respective packages.
 Reinstall recovery units with `--no-enable` while preserving any pause/hold; the
 harness-specific launchers avoid collisions when both plugins are installed.
+
+For a model-only update, follow [model updates](model-updates.md); no board
+migration or new Project fields are needed.

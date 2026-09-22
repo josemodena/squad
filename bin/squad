@@ -26,7 +26,7 @@ Start here:
   next                           Ordered continuation actions
   blocker set ISSUE --file FILE  Publish an owned blocker and visible labels
   repair-claim JOB [OPTIONS]      Claim bounded PM metadata repair
-  models                         Show the six configured role models
+  models [--check-upgrades]       Show role models or check available upgrades
   quota [--json]                 Read subscription capacity
   pause --reason TEXT            Persist a user pause
   resume --reason TEXT           Record an explicit user resume

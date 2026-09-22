@@ -23,12 +23,12 @@ harness_watchlist:
 decider: THE DECIDER
 decider_label: action-for-decider
 administrator: Administrator
-administrator_model: gpt-5.6-luna
+administrator_model: gpt-6-luna
 project_manager_model: gpt-6-astra
 architect_model: gpt-6-astra
-engineer_model: gpt-5.6-sol
+engineer_model: gpt-6-sol
 architecture_reviewer_model: gpt-6-astra
-engineering_reviewer_model: gpt-5.6-sol
+engineering_reviewer_model: gpt-6-sol
 max_workers: 3
 continuation_mode: native
 quota_mode: pacing

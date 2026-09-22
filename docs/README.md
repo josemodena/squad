@@ -40,3 +40,5 @@ install a recovery service for your first project.
 - [Direct planning and retrospective meetings](guides/meetings.md)
 
 - [Owned blockers and continuation](guides/blockers.md)
+
+- [Model versions and safe upgrades](guides/model-updates.md)

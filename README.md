@@ -191,15 +191,21 @@ when working elsewhere. See the [CLI reference](docs/reference/cli.md).
 
 | Role | Codex | Claude Code |
 | --- | --- | --- |
-| Administrator | Luna (`gpt-5.6-luna`) | Sonnet (`sonnet`) |
-| Project Manager | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Architect | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Engineer | Sol (`gpt-5.6-sol`) | Opus (`opus`) |
-| Architecture Reviewer | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Engineering Reviewer | Sol (`gpt-5.6-sol`) | Opus (`opus`) |
+| Administrator | GPT-6-Luna (`gpt-6-luna`) | Sonnet 5 (`sonnet`) |
+| Project Manager | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Architect | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Engineer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
+| Architecture Reviewer | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Engineering Reviewer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
 
 These are configurable assignments, not a claim of universal model availability
-or a price ranking. See [configuration](docs/reference/configuration.md).
+or a price ranking. Claude aliases can vary by provider or override; the versions
+above describe the Anthropic defaults verified on 2026-09-22. Opus 5.5 requires
+Claude Code 2.1.280 or later.
+
+Run `squad models --check-upgrades` to check Codex catalogue upgrade suggestions
+without changing settings or running agents. See [model updates](docs/guides/model-updates.md)
+for safe upgrades and [configuration](docs/reference/configuration.md) for overrides.
 
 ## Project status and contributing
 

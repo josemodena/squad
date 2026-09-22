@@ -1,6 +1,6 @@
 {
   "name": "squad",
-  "version": "0.4.5+codex.20260922185841",
+  "version": "0.4.6+codex.20260922200416",
   "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
   "author": {
     "name": "Squad"

@@ -310,8 +310,9 @@ def checkpoint(job, source):
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
-    for name in ('ready', 'next', 'recover', 'metrics', 'wake', 'state', 'models'):
+    for name in ('ready', 'next', 'recover', 'metrics', 'wake', 'state'):
         sub.add_parser(name)
+    s = sub.add_parser('models'); s.add_argument('--check-upgrades', action='store_true')
     pol = sub.add_parser('policy')
     pol.add_argument('--mode', choices=('pacing', 'weekly', 'unrestricted'))
     pol.add_argument('--reason')
@@ -347,6 +348,9 @@ def main():
     cmd = args.command
     if cmd == 'models':
         result = {role: config.get(role.replace('-', '_')+'_model') for role in ROLES}
+        if args.check_upgrades:
+            from model_updates import check_upgrades
+            result = check_upgrades(config, result, read(root(config)/'state.json', {}))
     elif cmd == 'policy':
         if args.mode:
             if not args.reason: raise ValueError('--reason is required for policy changes')

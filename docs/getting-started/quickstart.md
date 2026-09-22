@@ -95,7 +95,7 @@ work around an excluded item; resolve its recorded blocker.
 ## 5. Start the Administrator
 
 Use the configured Administrator model for the main session. For the shipped
-defaults, start `codex --model gpt-5.6-luna` or `claude --model sonnet`, if available
+defaults, start `codex --model gpt-6-luna` or `claude --model sonnet`, if available
 to your account, and invoke `$squad:administrator` or `/squad:administrator`.
 
 > Execute the agreed eligible issue using Squad. Use the configured roles and
