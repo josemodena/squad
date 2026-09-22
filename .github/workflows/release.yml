@@ -1,0 +1,54 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check release identity
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION=$(cat VERSION)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$RELEASE_TAG" = "v$VERSION"
+          git merge-base --is-ancestor HEAD origin/main
+          test -f "docs/releases/$VERSION.md"
+      - name: Package committed source
+        run: |
+          set -euo pipefail
+          VERSION=$(cat VERSION)
+          SOURCE_TIME=$(git show -s --format=%cI HEAD)
+          mkdir dist
+          git archive --format=tar --prefix="squad-$VERSION/" HEAD | gzip -n > "dist/squad-$VERSION-source.tar.gz"
+          for HARNESS in codex claude-code; do
+            git archive --format=tar --mtime="$SOURCE_TIME" --prefix=squad/ "HEAD:plugins/$HARNESS/squad" | gzip -n > "dist/squad-$VERSION-$HARNESS.tar.gz"
+          done
+          cd dist
+          sha256sum *.tar.gz > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION=$(cat VERSION)
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --latest \
+            --title "Squad $VERSION" --notes-file "docs/releases/$VERSION.md"

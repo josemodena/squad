@@ -127,7 +127,18 @@ def gh(*args):
 
 
 def pages(endpoint):
-    return [item for page in gh('api', '--paginate', '--slurp', endpoint) for item in page]
+    # Older supported gh versions emit successive JSON arrays without --slurp.
+    stream = run('gh', 'api', '--paginate', endpoint, json_output=False)
+    decoder, offset, items = json.JSONDecoder(), 0, []
+    while offset < len(stream):
+        if stream[offset].isspace():
+            offset += 1
+            continue
+        page, offset = decoder.raw_decode(stream, offset)
+        if not isinstance(page, list):
+            raise ValueError('Expected a JSON array from paginated GitHub REST endpoint')
+        items.extend(page)
+    return items
 
 
 def board(config, dependencies=True):

@@ -30,6 +30,21 @@ class RuntimeTest(unittest.TestCase):
         with patch.object(sys,'argv',['runtime',*args]),patch.object(r,'settings',return_value=self.config),patch.object(r,'board',return_value=[self.item]),patch.object(r,'quota_read',return_value=self.quota), contextlib.redirect_stdout(io.StringIO()) as out:
             r.main()
             return json.loads(out.getvalue())
+    def test_rest_pagination_supports_older_gh_without_slurp(self):
+        stream = ' \n[{"title":"brackets ][ inside a string"}]\n[]\n[{"number":2}] \n'
+        with patch.object(r, 'run', return_value=stream) as run:
+            self.assertEqual(r.pages('repos/example/demo/issues'),
+                             [{'title':'brackets ][ inside a string'}, {'number':2}])
+        run.assert_called_once_with('gh', 'api', '--paginate', 'repos/example/demo/issues', json_output=False)
+    def test_rest_pagination_rejects_malformed_or_non_array_pages(self):
+        for stream in ('[] trailing', '[{}] {"message":"error"}', '[{}] ['):
+            with self.subTest(stream=stream), patch.object(r, 'run', return_value=stream):
+                with self.assertRaises(ValueError):
+                    r.pages('repos/example/demo/issues')
+    def test_rest_pagination_propagates_command_failure(self):
+        with patch.object(r, 'run', side_effect=ValueError('authentication failed')):
+            with self.assertRaisesRegex(ValueError, 'authentication failed'):
+                r.pages('repos/example/demo/issues')
     def claim(self,job='j1'):
         return self.cli('claim',job,'--issue','1','--role','engineer','--worktree',str(self.worktree),'--brief',str(self.brief))
     def test_claim_blocks_duplicate_issue_and_id(self):

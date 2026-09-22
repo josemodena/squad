@@ -19,3 +19,17 @@ Start with `squad doctor`, `squad quota --json`, `squad status`, and `squad read
 Only commands needing GitHub call GitHub. Do not repeatedly query a model to poll
 a blocked condition. Preserve the output needed to diagnose it, with secrets and
 project-specific material removed before sharing.
+
+## GitHub CLI pagination fails
+
+Squad supports GitHub CLI 2.46.0 and later. If an older Squad installation reports
+`unknown flag: --slurp`, update Squad to 0.4.2 or later and run `squad doctor`.
+The runtime now reads the successive JSON pages returned by `gh api --paginate`.
+Do not hide a failed first run by silently installing a different CLI.
+
+## Tests leave a dirty tree
+
+Inspect `git status --short`. Run Python tests with `PYTHONDONTWRITEBYTECODE=1`
+or `python3 -B`, and use appropriate ignore rules for generated test artifacts.
+Only remove files you have identified as disposable. The merge guard correctly
+rejects unexplained changes; preserve it and retain other workers' files.

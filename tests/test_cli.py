@@ -56,6 +56,18 @@ class CLI(unittest.TestCase):
         result = self.run_cli('--harness','claude-code','session','attach')
         self.assertEqual(result.returncode, 2)
         self.assertIn('only for Codex', result.stderr)
+    def test_doctor_checks_gh_version_offline(self):
+        fake = Path(self.tmp.name)/'fake'; fake.mkdir()
+        self.env['PATH'] = str(fake)+os.pathsep+self.env['PATH']
+        for version, expected in [('2.45.0', 'FAIL'), ('2.46.0', 'OK'), ('2.101.0', 'OK'), ('unknown', 'FAIL')]:
+            tool = fake/'gh'
+            tool.write_text('#!/bin/sh\nprintf "gh version '+version+'\\n"\n')
+            tool.chmod(0o755)
+            result = self.run_cli('--harness', 'codex', 'doctor', '--offline')
+            line = next(line for line in result.stdout.splitlines() if 'GitHub CLI >=' in line)
+            self.assertTrue(line.startswith(expected), line)
+            if expected == 'FAIL':
+                self.assertNotEqual(result.returncode, 0)
     def test_cli_install_idempotent_and_no_overwrite(self):
         target = Path(self.tmp.name)/'bin with spaces'
         def install():

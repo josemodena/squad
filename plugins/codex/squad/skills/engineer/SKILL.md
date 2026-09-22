@@ -32,3 +32,8 @@ exact checks, red/green evidence and unproved areas in a durable report, then
 your own work. Failure/interruption preserves the branch, worktree and logs.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
+
+Keep test artifacts out of the delivery tree. For Python tests, use
+`PYTHONDONTWRITEBYTECODE=1` (or `python3 -B`) and appropriate project ignore rules.
+Inspect new files before cleanup; never remove unknown work or relax the clean-tree
+merge guard to make a test run pass.
