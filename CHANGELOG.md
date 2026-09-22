@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.4.1
+
+- Adopt Apache-2.0 for original Squad code and documentation.
+- Include LICENSE and NOTICE in both plugin distributions and update contribution terms.
+
 ## 0.4.0
 
 ### Added
