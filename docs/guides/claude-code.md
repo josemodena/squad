@@ -6,8 +6,11 @@ Settings live in `.claude/squad.local.md`; `/squad:init` configures the project.
 
 The Administrator uses native subagents and background completion notifications.
 It can coordinate other work while children run and need not end merely to wait.
-Role defaults are Sonnet for administration, Fable for project management and
-architecture authoring/review, and Opus for engineering authoring/review. Set
+Role defaults use Sonnet 5 for administration, Fable 5.1 for project management
+and architecture authoring/review, and Opus 5.5 for engineering authoring/review
+through the `sonnet`, `fable` and `opus` aliases. Use Claude Code 2.1.280 or later
+for Opus 5.5. Provider mappings and overrides can differ; see
+[model updates](model-updates.md). Set
 project overrides explicitly at dispatch. Six agents and corresponding skills
 ship in the plugin; old implement/review skill invocations remain aliases.
 

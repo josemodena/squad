@@ -72,6 +72,7 @@ necessary for a particular harness/account combination.
 | --- | --- | --- |
 | Native plugin install and namespaced skills | Yes | Yes |
 | Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
+| Read-only model upgrade discovery | Catalogue suggestions via `models --check-upgrades` | No automatic discovery; native alias verification |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
 | Owned blockers and continuation | Visible user requests, PM repairs, guarded claims | Visible user requests, PM repairs, guarded claims |
 | Direct Project Manager conversations | New Zellij tab; explicit model/effort | New Zellij tab; explicit model/effort |
@@ -117,7 +118,8 @@ repository's default branch separately if server-side enforcement is required.
   `curl`, and `flock` (usually in `util-linux`).
 - **One harness:** Codex or Claude Code, installed and authenticated, with plugin
   and native subagent support. The development baseline is Codex 0.155.1 and
-  Claude Code 2.1.278; these are tested CLI versions, not proven minimum versions.
+  Claude Code 2.1.280; these are CLI-check baselines, not universal minimums.
+  **Opus 5.5 specifically requires Claude Code 2.1.280 or later.**
 - A GitHub repository and a **GitHub Project v2**, with permission to manage its
   issues, pull requests and fields. Setup can create a board.
 - Access to the models you configure. The default aliases below may not be
@@ -191,15 +193,21 @@ when working elsewhere. See the [CLI reference](docs/reference/cli.md).
 
 | Role | Codex | Claude Code |
 | --- | --- | --- |
-| Administrator | Luna (`gpt-5.6-luna`) | Sonnet (`sonnet`) |
-| Project Manager | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Architect | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Engineer | Sol (`gpt-5.6-sol`) | Opus (`opus`) |
-| Architecture Reviewer | Astra (`gpt-6-astra`) | Fable (`fable`) |
-| Engineering Reviewer | Sol (`gpt-5.6-sol`) | Opus (`opus`) |
+| Administrator | GPT-6-Luna (`gpt-6-luna`) | Sonnet 5 (`sonnet`) |
+| Project Manager | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Architect | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Engineer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
+| Architecture Reviewer | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
+| Engineering Reviewer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
 
 These are configurable assignments, not a claim of universal model availability
-or a price ranking. See [configuration](docs/reference/configuration.md).
+or a price ranking. Claude aliases can vary by provider or override; the versions
+above describe the Anthropic defaults verified on 2026-09-22. Opus 5.5 requires
+Claude Code 2.1.280 or later.
+
+Run `squad models --check-upgrades` to check Codex catalogue upgrade suggestions
+without changing settings or running agents. See [model updates](docs/guides/model-updates.md)
+for safe upgrades and [configuration](docs/reference/configuration.md) for overrides.
 
 ## Project status and contributing
 

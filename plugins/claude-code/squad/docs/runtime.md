@@ -18,7 +18,8 @@ Python 3 (standard library), Git, GitHub CLI and the existing Bash tools are req
   the configured repository. GitHub rejects cycles and invalid relationships.
 - `ready`: current project items in priority/deadline order, with eligibility and
   explicit reasons for exclusions. Reads all project pages and native dependencies.
-- `models`: configured role-to-model map.
+- `models`: configured role-to-model map. `models --check-upgrades` reports Codex
+  catalogue suggestions without modifying settings, jobs or sessions.
 
 `init.sh apply` adds Responsible role, Stage, Agreement, Design, Priority,
 Forecast finish and Estimate (hours), retaining existing fields. The standard
@@ -37,7 +38,7 @@ pause always blocks dispatch. Unknown metadata fails visibly rather than guessin
 ```bash
 squad claim job-42-engineer-1 --issue 42 --role engineer \
   --worktree /path/to/worktree --brief /path/to/brief.md --readiness /path/to/assessment.json
-squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-5.6-sol \
+squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-6-sol \
   --thread THREAD_ID --turn TURN_ID --rollout /path/to/rollout.jsonl
 squad checkpoint job-42-engineer-1 --file /path/to/checkpoint-input.json
 squad complete job-42-engineer-1 --result completed --report /path/to/report.md

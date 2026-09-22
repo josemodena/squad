@@ -154,6 +154,15 @@ class RuntimeTest(unittest.TestCase):
         with self.assertRaises(ValueError): self.cli('bind','j1','--worker','w1','--model','luna')
         self.cli('bind','j1','--worker','w1','--model','sol')
         with self.assertRaises(ValueError): self.cli('bind','j1','--worker','w2','--model','sol')
+    def test_model_upgrade_keeps_claimed_job_model(self):
+        self.claim()
+        self.config['engineer_model']='new-sol'
+        with self.assertRaises(ValueError):
+            self.cli('bind','j1','--worker','w1','--model','new-sol')
+        job=self.cli('bind','j1','--worker','w1','--model','sol')
+        self.assertEqual(job['model'],'sol')
+        self.assertEqual(job['actual_model'],'sol')
+
     def test_completion_deduplicates_and_ack_removes_wake(self):
         self.claim()
         self.cli('complete','j1','--result','completed','--report',str(self.report))

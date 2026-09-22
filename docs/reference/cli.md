@@ -27,6 +27,7 @@ its location does not identify the harness.
 | `squad status` / `squad recover` | JSON recovery summary and effective policy |
 | `squad ready` | JSON eligibility and exclusion reasons |
 | `squad models` | Role/model assignments |
+| `squad models --check-upgrades` | Read-only Codex upgrade suggestions and unfinished-job models |
 | `squad quota --json` | Capacity reading; exit 0 run, 1 suspend, 2 stale, 3 missing |
 | `squad pause --reason TEXT` | Block new work; does not kill running workers |
 | `squad resume --reason TEXT` | Record an explicit resume; legacy holds remain |

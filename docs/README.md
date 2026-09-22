@@ -11,6 +11,9 @@ install a recovery service for your first project.
 
 ## Guides
 
+- [Direct planning and retrospective meetings](guides/meetings.md)
+- [Owned blockers and continuation](guides/blockers.md)
+- [Model versions and safe upgrades](guides/model-updates.md)
 - [Workflow, roles and continuation](guides/workflow.md)
 - [Spec-Driven Development integration](guides/spec-driven-development.md)
 - [Codex operation and recovery](guides/codex.md)
@@ -36,7 +39,3 @@ install a recovery service for your first project.
 - [Roadmap](development/roadmap.md)
 - [Licensing](development/licensing.md)
 - [Changelog](../CHANGELOG.md)
-
-- [Direct planning and retrospective meetings](guides/meetings.md)
-
-- [Owned blockers and continuation](guides/blockers.md)

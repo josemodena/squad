@@ -1,7 +1,7 @@
 {
   "name": "squad",
   "displayName": "Squad",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
   "author": {
     "name": "Squad"

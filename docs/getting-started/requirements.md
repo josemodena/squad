@@ -22,9 +22,14 @@ another platform does not establish support for the complete workflow.
 GitHub CLI 2.46.0 is the supported minimum, including paginated REST operations.
 `doctor` checks its version; board access still needs a live permission check.
 
-Development baselines: Codex 0.155.1, Claude Code 2.1.278. These versions were used
+Development baselines: Codex 0.155.1, Claude Code 2.1.280. These versions were used
 for CLI and manifest checks; they are not established minimum versions. Harness
 interfaces can change. Verify a complete delivery cycle after a harness upgrade.
+
+The current Claude defaults need Claude Code **2.1.280 or later** for Opus 5.5.
+Sonnet 5 needs 2.1.197 and Fable 5.1 needs 2.1.257. Run `claude --version` and
+`claude update` if needed. Provider mappings and overrides can differ; see
+[model versions and safe upgrades](../guides/model-updates.md).
 
 macOS and native Windows are not supported. WSL2 may provide the required Linux
 environment, but is untested; recovery also needs a functioning user systemd
