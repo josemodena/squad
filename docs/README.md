@@ -38,3 +38,5 @@ install a recovery service for your first project.
 - [Changelog](../CHANGELOG.md)
 
 - [Direct planning and retrospective meetings](guides/meetings.md)
+
+- [Owned blockers and continuation](guides/blockers.md)

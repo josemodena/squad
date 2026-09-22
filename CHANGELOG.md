@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.4.5 — 2026-09-22
+
+- Make readiness exclusions actionable with blocker categories, named owners,
+  next actions, user-action flags and explicit claimability.
+- Add visible orange user-action labels and readable PM requests, preserving
+  explicit Project Status and backing up/journalling writes.
+- Add a deterministic continuation list, bounded PM metadata-repair claims and
+  mandatory owned handoffs before acknowledgement.
+- Require input/authority/brief assessments before delivery claims; retain holds
+  after blocked jobs are acknowledged until resolution is recorded.
+- Batch readiness dependencies and labels with bounded rate-limit handling.
+
 ## 0.4.4 — 2026-09-22
 
 - Launch direct planning and retrospective conversations in project-scoped Zellij

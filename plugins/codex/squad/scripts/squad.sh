@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Durable execution and typed tracker operations share one implementation.
 case "${1:-}" in
-  ready|recover|metrics|wake|state|models|policy|pause|resume|observe|field|dependency|claim|bind|checkpoint|complete|ack|retry|external|settle|comment|issue-read|pr-read|issue-create|run|review-prepare|review-record)
+  ready|next|recover|metrics|wake|state|models|policy|pause|resume|observe|field|dependency|claim|repair-claim|bind|checkpoint|complete|handoff|ack|retry|external|settle|comment|issue-read|pr-read|issue-create|run|review-prepare|review-record)
     exec bash "$SCRIPT_DIR/runtime.sh" "$@" ;;
 esac
 

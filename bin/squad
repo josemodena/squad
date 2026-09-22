@@ -22,7 +22,10 @@ Start here:
   meeting start planning|retro   Open a direct Project Manager conversation in Zellij
   meeting status planning|retro  Inspect the meeting record
   status                         Show unfinished work and effective policy
-  ready                          Explain which items can be dispatched
+  ready                          Explain eligibility and owned blockers
+  next                           Ordered continuation actions
+  blocker set ISSUE --file FILE  Publish an owned blocker and visible labels
+  repair-claim JOB [OPTIONS]      Claim bounded PM metadata repair
   models                         Show the six configured role models
   quota [--json]                 Read subscription capacity
   pause --reason TEXT            Persist a user pause
@@ -150,7 +153,7 @@ def main():
     if command == 'board' and rest and rest[0] in ('snapshot','restore','options'):
         os.execvp('bash',['bash',str(scripts/'board-backup.sh'),*rest])
     targets = {'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
-               'runtime': 'runtime.sh', 'meeting': 'meeting.sh', 'session': 'conductor-session.sh'}
+               'runtime': 'runtime.sh', 'meeting': 'meeting.sh', 'blocker': 'blocker.sh', 'session': 'conductor-session.sh'}
     if command == 'session' and harness != 'codex':
         fail('managed session commands are available only for Codex')
     if command == 'conductor':

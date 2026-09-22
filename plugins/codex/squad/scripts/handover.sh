@@ -124,6 +124,15 @@ body="$(
   printf '%s\n' "${next_actions:-$SQUAD_HANDOVER_NEXT_DEFAULT}"
   printf '\n## %s\n\n' "$SQUAD_HANDOVER_WAITS_HEADING"
   printf '%s\n' "${waits:-$SQUAD_HANDOVER_WAITS_DEFAULT}"
+  printf '\n## Owned blockers and continuation\n\n'
+  bash "$SCRIPT_DIR/runtime.sh" recover 2>/dev/null | python3 -c '
+import json,sys
+r=json.load(sys.stdin).get("readiness",{});print("Last readiness capture:",r.get("captured_at","not recorded"))
+for item in r.get("items",[]):
+ for b in item.get("blockers",[]):
+  print("- #"+str(item["number"])+" — "+b["reason"]+"; owner: "+b["owner"]+"; next: "+b["next_action"]+"; requires user: "+str(b["requires_user"]))
+if not r.get("captured_at"):print("Refresh squad ready; absence of a capture is not proof of no blockers.")
+' || printf 'Readiness unavailable; refresh squad ready before claiming work.\n'
   printf '\n## %s\n\n' "$SQUAD_HANDOVER_EVENTS_HEADING"
   printf '%s\n' "${events:-$SQUAD_HANDOVER_EVENTS_DEFAULT}"
 )"

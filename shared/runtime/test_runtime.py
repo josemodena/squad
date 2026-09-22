@@ -25,11 +25,55 @@ class RuntimeTest(unittest.TestCase):
         git('init'); git('config','user.email','test@example.org'); git('config','user.name','Test')
         (self.worktree/'a').write_text('initial\n'); git('add','a'); git('commit','-m','initial')
         self.brief = Path(self.tmp.name)/'brief.md'; self.brief.write_text('Do bounded work')
+        self.assessment=Path(self.tmp.name)/'readiness.json';self.assessment.write_text(json.dumps({'inputs':'not-required','authority':'verified','brief_blockers':[],'evidence':['Agreed fixture scope']}))
         self.report = Path(self.tmp.name)/'report.md'; self.report.write_text('Evidence')
     def cli(self,*args):
+        if args and args[0]=='ack':
+            job=args[1];handoff=Path(self.tmp.name)/'handoff.json'
+            handoff.write_text(json.dumps({'completed':'bounded work','not_completed':'independent review','evidence':str(self.report),'next_action':'independent review','owner':'engineering-reviewer','fresh_job_allowed':True,'transition':{'Stage':'engineering-review','Responsible role':'engineering-reviewer'},'tracking':'fixture review assignment'}))
+            self.cli('handoff',job,'--file',str(handoff))
         with patch.object(sys,'argv',['runtime',*args]),patch.object(r,'settings',return_value=self.config),patch.object(r,'board',return_value=[self.item]),patch.object(r,'quota_read',return_value=self.quota), contextlib.redirect_stdout(io.StringIO()) as out:
             r.main()
             return json.loads(out.getvalue())
+    def blocker(self,category='decision-required',needs=True):
+        import blockers
+        record={'id':'acceptance-authority-required','category':category,'owner':'Project owner' if needs else 'engineer','next_action':'Provide a specifically bounded decision','why':'Acceptance remains unproved','recommendation':'Review the bounded request','evidence':'fixture report','requires_user':needs}
+        self.item['body']=blockers.render('',[record])
+        return record
+    def test_external_blocker_prevents_any_claim_and_unrestricted_is_not_authority(self):
+        self.blocker();self.quota['policy']['mode']='unrestricted'
+        ready=self.cli('ready')[0]
+        self.assertFalse(ready['claimable']);self.assertTrue(ready['requires_user'])
+        self.assertEqual(ready['blockers'][0]['owner'],'Project owner')
+        for job in ('one','two'):
+            with self.assertRaisesRegex(ValueError,'acceptance-authority-required'):self.claim(job)
+        self.assertEqual(self.cli('state')['jobs'],{})
+    def test_external_acceptance_evidence_missing(self):
+        self.blocker('acceptance-evidence-missing',False)
+        with self.assertRaises(ValueError):self.claim()
+    def test_pm_repair_missing_estimate_then_reviewer_is_eligible_status_unchanged(self):
+        self.config['project_manager_model']='astra'
+        self.item['fields'].update(Stage='engineering-review',**{'Responsible role':'engineering-reviewer','Status':'In review'})
+        del self.item['fields']['Estimate (credits %)']
+        actions=self.cli('next');self.assertTrue(actions['can_continue'])
+        self.assertEqual(actions['actions'][0]['action'],'repair-metadata')
+        job=self.cli('repair-claim','repair','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.assertEqual(job['role'],'project-manager');self.assertEqual(job['kind'],'metadata-repair')
+        with self.assertRaises(ValueError):self.cli('repair-claim','duplicate','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.item['fields']['Estimate (credits %)']=.75
+        self.cli('complete','repair','--result','completed','--report',str(self.report));self.cli('ack','repair')
+        self.assertTrue(self.cli('ready')[0]['claimable']);self.assertEqual(self.item['fields']['Status'],'In review')
+    def test_claim_assessment_missing_input_blocks_without_job(self):
+        self.assessment.write_text(json.dumps({'inputs':'missing','authority':'verified','brief_blockers':[],'evidence':['report']}))
+        with self.assertRaisesRegex(ValueError,'inputs or authority'):self.claim()
+        self.assertEqual(self.cli('state')['jobs'],{})
+    def test_recovery_has_owned_blockers_for_agreed_exclusions(self):
+        self.blocker();self.cli('ready');r=self.cli('recover')['readiness']
+        self.assertIsNotNone(r['captured_at']);self.assertEqual(r['items'][0]['blockers'][0]['owner'],'Project owner')
+    def test_ack_cannot_lose_followup(self):
+        self.claim();self.cli('complete','j1','--result','completed','--report',str(self.report))
+        with patch.object(sys,'argv',['runtime','ack','j1']),patch.object(r,'settings',return_value=self.config),self.assertRaisesRegex(ValueError,'owned handoff'):
+            r.main()
     def test_rest_pagination_supports_older_gh_without_slurp(self):
         stream = ' \n[{"title":"brackets ][ inside a string"}]\n[]\n[{"number":2}] \n'
         with patch.object(r, 'run', return_value=stream) as run:
@@ -46,7 +90,7 @@ class RuntimeTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'authentication failed'):
                 r.pages('repos/example/demo/issues')
     def claim(self,job='j1'):
-        return self.cli('claim',job,'--issue','1','--role','engineer','--worktree',str(self.worktree),'--brief',str(self.brief))
+        return self.cli('claim',job,'--issue','1','--role','engineer','--worktree',str(self.worktree),'--brief',str(self.brief),'--readiness',str(self.assessment))
     def test_claim_blocks_duplicate_issue_and_id(self):
         self.claim()
         with self.assertRaises(ValueError): self.claim('j2')
@@ -135,7 +179,7 @@ class RuntimeTest(unittest.TestCase):
         self.claim(); self.cli('bind','j1','--worker','author','--model','sol')
         self.cli('complete','j1','--result','completed','--report',str(self.report)); self.cli('ack','j1')
         self.item['fields'].update({'Stage':'engineering-review','Responsible role':'engineering-reviewer'})
-        self.cli('claim','r1','--issue','1','--role','engineering-reviewer','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('claim','r1','--issue','1','--role','engineering-reviewer','--worktree',str(self.worktree),'--brief',str(self.brief),'--readiness',str(self.assessment))
         with self.assertRaises(ValueError): self.cli('bind','r1','--worker','author','--model','sol')
     def test_changed_pr_head_rejects_review_without_comment(self):
         with patch.object(sys,'argv',['runtime','review-record','1','--head','old','--verdict','pass','--file',str(self.report)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'gh',return_value={'headRefOid':'new'}) as mock:

@@ -142,39 +142,67 @@ def pages(endpoint):
 
 
 def board(config, dependencies=True):
-    """Use paginated GraphQL; never silently truncate the project to 100 items."""
-    owner_kind = 'organization' if config.get('project_owner_type') in ('organization', 'org') else 'user'
-    query = '''query($owner:String!,$number:Int!,$cursor:String){ OWNER(login:$owner){projectV2(number:$number){id items(first:100,after:$cursor){pageInfo{hasNextPage endCursor} nodes{id content{... on Issue{number title state url repository{nameWithOwner}}} fieldValues(first:100){nodes{... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}} ... on ProjectV2ItemFieldDateValue{date field{... on ProjectV2FieldCommon{name}}} ... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2FieldCommon{name}}} ... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{name}}}}}}}}}}'''.replace('OWNER', owner_kind)
-    cursor, items = None, []
-    while True:
-        args = ['api', 'graphql', '-f', 'query='+query, '-f', 'owner='+config['project_owner'], '-F', 'number='+config['project_number']]
-        if cursor:
-            args += ['-f', 'cursor='+cursor]
-        response = gh(*args)
-        if response.get('errors'):
-            raise ValueError(str(response['errors']))
-        project = response['data'][owner_kind]['projectV2']
-        for node in project['items']['nodes']:
-            issue = node['content']
-            if not issue or issue.get('repository', {}).get('nameWithOwner') != config['repository']:
-                continue
-            fields = {v['field']['name']: next((v[k] for k in ('name', 'date', 'number', 'text') if k in v), None) for v in node['fieldValues']['nodes'] if v}
-            issue.update({'fields': fields, 'item_id': node['id'], 'project_id': project['id']})
-            issue['dependencies'] = pages('repos/'+config['repository']+'/issues/'+str(issue['number'])+'/dependencies/blocked_by?per_page=100') if dependencies and issue['state'] == 'OPEN' and fields.get(config.get('status_field','Status')) in ('This sprint','In progress','In review') else []
-            items.append(issue)
-        page = project['items']['pageInfo']
-        if not page['hasNextPage']:
-            return items
-        cursor = page['endCursor']
+    """Paginated batched readiness reads with the same bounded API retries as backups."""
+    import board_backup as b
+    api=b.API()
+    owner='organization' if config.get('project_owner_type') in ('org','organization') else 'user'
+    data=api.query('query($owner:String!,$number:Int!){'+owner+'(login:$owner){projectV2(number:$number){id}}}',
+                   {'owner':config['project_owner'],'number':int(config['project_number'])})
+    project=(data.get(owner) or {}).get('projectV2')
+    if not project: raise ValueError('Project missing or inaccessible')
+    issue='id number title state url body repository{nameWithOwner} labels(first:100){'+b.PAGE+'{name}}'
+    if dependencies: issue+=' blockedBy(first:100){'+b.PAGE+'{id number state url}}'
+    values=b.VALUE.replace(' optionId }',' optionId name }')
+    selection='id isArchived content{__typename ... on Issue{'+issue+'}} fieldValues(first:100){'+b.PAGE+'{'+values+'}}'
+    nodes=b.connection(api,project['id'],'items',selection,50)
+    requests=[];items=[]
+    for node in nodes:
+        content=node['content']
+        if not content: raise ValueError('Unreadable Project item; readiness is incomplete')
+        if content['__typename']!='Issue' or content['repository']['nameWithOwner']!=config['repository']:continue
+        if node['fieldValues']['pageInfo']['hasNextPage']:
+            requests.append((node['fieldValues'],node['id'],'ProjectV2Item','fieldValues',values,None))
+        for key,sel in [('labels','name')]+([('blockedBy','id number state url')] if dependencies else []):
+            if content[key]['pageInfo']['hasNextPage']: requests.append((content[key],content['id'],'Issue',key,sel,None))
+        items.append(node)
+    b.finish_nested(api,requests)
+    result=[]
+    for node in items:
+        content=node['content'];fields={}
+        for value in node['fieldValues']['nodes']:
+            if not value or 'field' not in value:raise ValueError('Unreadable Project field value')
+            name=value['field']['name']
+            if value['__typename']=='ProjectV2ItemFieldSingleSelectValue':
+                # Readiness needs names as well as immutable option IDs.
+                fields[name]=value.get('name')
+            else: fields[name]=next((value[k] for k in ('text','date','number') if k in value),None)
+        result.append({**content,'labels':content['labels']['nodes'],'fields':fields,
+                       'dependencies':content['blockedBy']['nodes'] if dependencies else [],
+                       'item_id':node['id'],'project_id':project['id'],'archived':node['isArchived']})
+    return result
 
 
 def eligible(items, state, config, quota=None):
     answer = []
     for item in items:
         f = item['fields']
+        import blockers
+        records=blockers.explicit(item,config)
+        related=[j for j in state['jobs'].values() if j['issue']==item['number'] and j.get('handoff')]
+        if related:
+            last=max(related,key=lambda j:j.get('claimed_at',0))
+            h=last['handoff']
+            if not h['fresh_job_allowed']:
+                try:
+                    resolved=any(r['id']==h['tracking'] and r.get('status')=='resolved' for r in blockers.parse(item.get('body','')))
+                except ValueError:resolved=False
+                if not resolved and not any(r['reason']==h['tracking'] for r in records):
+                    records.append({'reason':'handoff-unresolved','category':'metadata-repair-required','owner':h['owner'],
+                                    'next_action':h['next_action'],'requires_user':h.get('requires_user',False),'claimable':False})
         reasons = []
         stage = f.get('Stage')
         role = f.get('Responsible role')
+        if item.get('archived'): reasons.append('outside-active-work')
         if item['state'].upper() != 'OPEN': reasons.append('closed')
         if f.get('Agreement') != 'Agreed': reasons.append('not-agreed')
         if f.get(config.get('status_field', 'Status')) not in ('This sprint', 'In progress', 'In review'): reasons.append('outside-active-work')
@@ -189,7 +217,14 @@ def eligible(items, state, config, quota=None):
             reasons.append('missing-estimate')
         elif quota and quota.get('policy', {}).get('mode') != 'unrestricted' and quota.get('headroom', 0) < estimate:
             reasons.append('insufficient-headroom')
-        answer.append({**item, 'role': role, 'stage': stage, 'eligible': not reasons, 'reasons': reasons})
+        records += [blockers.describe(reason,item,config) for reason in reasons]
+        reasons = list(dict.fromkeys([r['reason'] for r in records]))
+        repair_reasons={'missing-estimate','role-stage-mismatch','not-agreed','invalid-blocker-metadata','unresolved-blocker-label'}
+        repairable=bool(set(reasons)&repair_reasons) and not state.get('paused') and not any(r in reasons for r in ('already-owned','closed','outside-active-work')) and (not quota or quota.get('verdict')=='run')
+        answer.append({**item, 'role': role, 'stage': stage, 'eligible': not reasons, 'claimable':not reasons,
+                       'reasons': reasons, 'blockers':records, 'requires_user':any(r['requires_user'] for r in records),
+                       'next_actions':records, 'metadata_repair':{'owner':'project-manager','claimable':repairable,
+                       'next_action':'Repair metadata from existing authority without changing scope or explicit Status; refresh readiness.'} if set(reasons)&repair_reasons else None})
     return sorted(answer, key=lambda i: (str(i['fields'].get('Priority', 'P2')), i['fields'].get('Needed by') or '9999', i['number']))
 
 
@@ -275,7 +310,7 @@ def checkpoint(job, source):
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
-    for name in ('ready', 'recover', 'metrics', 'wake', 'state', 'models'):
+    for name in ('ready', 'next', 'recover', 'metrics', 'wake', 'state', 'models'):
         sub.add_parser(name)
     pol = sub.add_parser('policy')
     pol.add_argument('--mode', choices=('pacing', 'weekly', 'unrestricted'))
@@ -293,11 +328,13 @@ def parser():
     s = sub.add_parser('review-record'); s.add_argument('pr', type=int); s.add_argument('--head', required=True); s.add_argument('--verdict', choices=('pass','fixes-required','do-not-merge'), required=True); s.add_argument('--file', required=True)
     s = sub.add_parser('field'); s.add_argument('issue', type=int); s.add_argument('name'); s.add_argument('value')
     s = sub.add_parser('dependency'); s.add_argument('action', choices=('list','add','remove')); s.add_argument('issue', type=int); s.add_argument('prerequisite', nargs='?', type=int)
-    s = sub.add_parser('claim'); s.add_argument('job'); s.add_argument('--issue', type=int, required=True); s.add_argument('--role', choices=ROLES, required=True); s.add_argument('--worktree', required=True); s.add_argument('--brief', required=True)
+    s = sub.add_parser('claim'); s.add_argument('job'); s.add_argument('--issue', type=int, required=True); s.add_argument('--role', choices=ROLES, required=True); s.add_argument('--worktree', required=True); s.add_argument('--brief', required=True); s.add_argument('--readiness')
+    s = sub.add_parser('repair-claim'); s.add_argument('job'); s.add_argument('--issue',type=int,required=True); s.add_argument('--worktree',required=True); s.add_argument('--brief',required=True)
     s = sub.add_parser('bind'); s.add_argument('job'); s.add_argument('--worker', required=True); s.add_argument('--model', required=True); s.add_argument('--thread'); s.add_argument('--turn'); s.add_argument('--rollout')
     s = sub.add_parser('checkpoint'); s.add_argument('job'); s.add_argument('--file', required=True)
     s = sub.add_parser('complete'); s.add_argument('job'); s.add_argument('--result', choices=('completed','failed','interrupted','cancelled'), required=True); s.add_argument('--report', required=True)
     s = sub.add_parser('settle'); s.add_argument('--through', type=int, required=True)
+    s = sub.add_parser('handoff'); s.add_argument('job'); s.add_argument('--file',required=True)
     s = sub.add_parser('ack'); s.add_argument('job')
     s = sub.add_parser('retry'); s.add_argument('job'); s.add_argument('--reason', required=True)
     s = sub.add_parser('external'); s.add_argument('id'); s.add_argument('--reason', required=True)
@@ -407,11 +444,11 @@ def main():
             dep = gh('api', 'repos/'+config['repository']+'/issues/'+str(args.prerequisite))
             result = gh('api', endpoint, '-X', 'POST', '-F', 'issue_id='+str(dep['id'])) if args.action == 'add' else run('gh', 'api', endpoint+'/'+str(dep['id']), '-X', 'DELETE', json_output=False)
     else:
-        items = board(config) if cmd in ('ready', 'claim') else None
-        quota = quota_read(config) if cmd in ('ready', 'claim', 'wake') else None
+        items = board(config) if cmd in ('ready', 'next', 'claim', 'repair-claim') else None
+        quota = quota_read(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'wake') else None
         with transaction(config) as state:
             jobs = state['jobs']
-            if cmd == 'ready':
+            if cmd in ('ready','next'):
                 result = eligible(items, state, config, quota)
                 waiting = any(i['reasons'] and set(i['reasons']) <= {'policy','provider-limit','stale','missing','quota','quota-unreadable','insufficient-headroom'} for i in result)
                 required = min((i['fields'][config.get('estimate_field','Estimate (credits %)')] for i in result if i['reasons'] and set(i['reasons']) <= {'policy','provider-limit','stale','missing','quota','quota-unreadable','insufficient-headroom'}), default=0)
@@ -419,24 +456,42 @@ def main():
                     state['capacity_wait'] = waiting
                     state['capacity_required'] = required
                     event(state,'capacity-wait',waiting=waiting,required=required)
+                state['readiness']={'captured_at':time.time(),'items':[{k:i[k] for k in ('number','url','stage','role','blockers','metadata_repair') if k in i} for i in result if i['fields'].get('Agreement')=='Agreed' and not i['eligible']]}
                 active = sum(j['status'] in ('claimed','running') for j in jobs.values())
                 count = sum(i['eligible'] for i in result)
                 state['observations'].append({'at':time.time(), 'eligible':count, 'capacity':int(config.get('max_workers',3))-active, 'active':active, 'reason':'ready' if count else ('user-paused' if state['paused'] else quota.get('reason','blocked'))})
+                if cmd=='next':
+                    actions=[]
+                    for i in result:
+                        if i.get('archived') or i['state'].upper()!='OPEN' or 'outside-active-work' in i['reasons']:continue
+                        if i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
+                        elif i.get('metadata_repair') and i['metadata_repair']['claimable']:
+                            actions.append({'issue':i['number'],'action':'repair-metadata',**i['metadata_repair'],'requires_user':False})
+                        else:
+                            actions.extend({'issue':i['number'],'action':'request-user' if b['requires_user'] else 'resolve-or-wait',**b} for b in i['blockers'])
+                    result={'actions':actions,'can_continue':any(a['action'] in ('dispatch','repair-metadata') for a in actions),
+                            'instruction':'Process all actionable handoffs; only wait on named external dependencies, user decisions, pause or capacity.'}
             elif cmd in ('pause','resume'):
                 state['paused'] = cmd == 'pause'; event(state, cmd, reason=args.reason); result = {'paused': state['paused']}
-            elif cmd == 'claim':
+            elif cmd in ('claim','repair-claim'):
                 if not args.job or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-' for c in args.job): raise ValueError('invalid job id')
                 if sum(j['status'] in ('claimed','running') for j in jobs.values()) >= int(config.get('max_workers',3)): raise ValueError('worker capacity is full')
                 if args.job in jobs: raise ValueError('job id already exists; inspect it, do not launch twice')
                 item = next((i for i in eligible(items, state, config, quota) if i['number'] == args.issue), None)
-                if not item or not item['eligible']: raise ValueError('not eligible: '+str(item and item['reasons']))
-                if item['role'] != args.role: raise ValueError('assignment does not match responsible role')
-                model = config.get(args.role.replace('-', '_')+'_model')
+                repair=cmd=='repair-claim'
+                if not item or not (item.get('metadata_repair') and item['metadata_repair']['claimable'] if repair else item['eligible']): raise ValueError('not eligible: '+str(item and item['reasons']))
+                role='project-manager' if repair else args.role
+                if not repair and item['role'] != role: raise ValueError('assignment does not match responsible role')
+                import blockers
+                assessment={'kind':'metadata-repair','scope':'existing authority only'} if repair else blockers.verify_claim_inputs(args.readiness)
+                if repair and quota.get('policy',{}).get('mode')!='unrestricted' and quota.get('headroom',0)<float(config.get('metadata_repair_estimate',0.5)):
+                    raise ValueError('insufficient headroom for bounded metadata repair')
+                model = config.get(role.replace('-', '_')+'_model')
                 if not model: raise ValueError('role model is not configured')
                 brief = Path(args.brief).read_text()
                 worktree = str(Path(args.worktree).resolve())
                 if not Path(worktree).is_dir(): raise ValueError('worktree must exist before claim')
-                job = {'id': args.job, 'issue': args.issue, 'role': args.role, 'model': model, 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
+                job = {'id': args.job, 'issue': args.issue, 'role': role, 'kind':'metadata-repair' if repair else 'delivery', 'readiness_assessment':assessment, 'model': model, 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
                 jobs[args.job] = job; event(state, 'claim', job=args.job); result = job
             elif cmd == 'settle':
                 if args.through > state['revision']: raise ValueError('cannot settle a future revision')
@@ -445,7 +500,7 @@ def main():
             elif cmd == 'external':
                 if not any(e.get('external_id') == args.id for e in state['events']): event(state, 'external', external_id=args.id, reason=args.reason)
                 result = {'recorded': args.id}
-            elif cmd in ('bind','checkpoint','complete','ack','retry'):
+            elif cmd in ('bind','checkpoint','complete','handoff','ack','retry'):
                 job = jobs.get(args.job)
                 if not job: raise ValueError('unknown job')
                 if cmd == 'bind':
@@ -463,14 +518,23 @@ def main():
                         if job['status'] != args.result or job.get('report') != report: raise ValueError('conflicting completion')
                         print(json.dumps(job)); return
                     job.update({'status': args.result, 'report': report, 'completed_at': time.time(), 'handled': False})
+                elif cmd == 'handoff':
+                    handoff=read(args.file)
+                    required=('completed','not_completed','evidence','next_action','owner','fresh_job_allowed','transition','tracking')
+                    if not isinstance(handoff,dict) or any(k not in handoff for k in required):raise ValueError('handoff requires '+', '.join(required))
+                    for key in ('evidence','next_action','owner','tracking'):
+                        if not isinstance(handoff[key],str) or not handoff[key].strip():raise ValueError('handoff requires nonempty '+key)
+                    if not isinstance(handoff['fresh_job_allowed'],bool):raise ValueError('fresh_job_allowed must be boolean')
+                    job['handoff']=handoff
                 elif cmd == 'ack':
                     if job['status'] not in TERMINAL: raise ValueError('only a terminal job can be acknowledged')
+                    if not job.get('handoff'):raise ValueError('record an owned handoff before acknowledging completion')
                     job['handled'] = True
                 elif cmd == 'retry':
                     if job['status'] != 'interrupted': raise ValueError('only interrupted jobs can be released after checking native worker and processes')
                     job.update({'status':'cancelled', 'handled': True, 'recovery_reason': args.reason})
                 event(state, cmd, job=args.job); result = job
-            elif cmd in ('state','recover'): result = state if cmd == 'state' else {'revision': state['revision'], 'external_events': [e for e in state['events'] if e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0)], 'paused': state['paused'], 'jobs': [j for j in jobs.values() if j['status'] in ACTIVE or not j.get('handled')], 'policy': policy(config)}
+            elif cmd in ('state','recover'): result = state if cmd == 'state' else {'revision': state['revision'], 'external_events': [e for e in state['events'] if e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0)], 'paused': state['paused'], 'jobs': [j for j in jobs.values() if j['status'] in ACTIVE or not j.get('handled')], 'policy': policy(config), 'readiness':state.get('readiness',{'captured_at':None,'items':[]})}
             elif cmd == 'observe':
                 if min(args.eligible, args.capacity) < 0: raise ValueError('counts cannot be negative')
                 observation = {'at': time.time(), 'eligible': args.eligible, 'capacity': args.capacity, 'active': sum(j['status'] in ('claimed','running') for j in jobs.values()), 'reason': args.reason}

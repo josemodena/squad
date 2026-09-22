@@ -31,7 +31,7 @@ model and reject an override. Never implement or make product/design decisions y
    capacity. Do not hold completed work for an unrelated batch. Refer ambiguous
    priorities to the Project Manager and technical ambiguity to the Architect.
 3. Before spawning, create/locate the isolated worktree and write the brief to
-   disk. `squad.sh claim JOB --issue N --role ROLE --worktree PATH --brief FILE`
+   disk. `squad.sh claim JOB --issue N --role ROLE --worktree PATH --brief FILE --readiness ASSESSMENT_JSON`
    checks agreement, dependencies, design, quota and duplicate ownership under
    a lock. A rejected claim never authorises spawning. Use the returned model.
    On an ambiguous spawn failure inspect the native worker list before retrying.
@@ -47,7 +47,7 @@ model and reject an override. Never implement or make product/design decisions y
    path, not a required intermediary for normal completion.
 6. Read the durable result, verify evidence and record completion if the worker
    could not. Transition the board to its next Stage and Responsible role,
-   then `squad.sh ack JOB`. Only then claim a fresh assignment. Normal sequence:
+   record `squad.sh handoff JOB --file HANDOFF_JSON`, then `squad.sh ack JOB`. Only then claim a fresh assignment. Normal sequence:
    architecture → architecture-review → engineering → engineering-review.
    Approved existing designs can start at engineering. Failed review returns
    to the authoring role; do not assign the same worker to review its own output.
@@ -101,3 +101,41 @@ Manager records agreed scope. Read meeting completion events through `squad.sh
 recover` at coordination boundaries and before settling events; read the linked
 outcome and refresh ready work. These durable events are not native subagent
 completion messages. An idle conductor can discover them through existing recovery.
+
+## Continue each agreed item until completion
+
+Run `squad.sh next` after recovery, each result, a rejected claim, a metadata repair
+and a user decision. It provides dispatchable work, PM repairs and named waits.
+Do not end a turn while eligible work or an internal metadata repair can proceed.
+An item waiting on the user, a dependency or capacity still needs an owner, precise
+next action, tracking reference and resumption condition. Do not poll or relaunch
+an unchanged blocked task to appear busy. Process other independent ready work.
+
+- `dispatch`: claim using a fresh input/authority/brief assessment, then launch the
+  configured role. The assessment contains `inputs` and `authority` (`verified`
+  or `not-required`), empty `brief_blockers`, and nonempty evidence references.
+  Review existing specific authority and whether a bounded allowance was consumed;
+  agreed scope and unrestricted quota never supply external acceptance authority.
+- `repair-metadata`: claim `repair-claim JOB --issue N --worktree PATH --brief FILE`
+  and dispatch the configured Project Manager. This is bounded maintenance of
+  existing scope/authority, not implementation or permission to mark new scope
+  Agreed. Missing estimates/stage/role must not silently wait for the user.
+- External input/authority: publish an owned blocker with `blocker.sh set ISSUE
+  --file RECORD`. The user gets what to do, why and a PM recommendation in plain
+  English, plus the orange attention label. Ensure Labels is visible using
+  `blocker.sh visibility`. Preserve existing explicit Status. Use the existing
+  Blocked column for separately agreed action cards; never invent another column.
+- Review fixes: route a bounded correction back to its authoring role; use a fresh
+  independent reviewer after correction. A final native gate must not conceal
+  useful already-authorised offline correction work: track it as a separate
+  bounded assignment with its own acceptance criteria and explicit dependencies.
+
+Before ack, the handoff JSON records `completed`, `not_completed`, `evidence`,
+`next_action`, `owner`, boolean `fresh_job_allowed`, `transition` (Stage/Responsible
+role change or explicit none), and `tracking`. If no fresh job is allowed, tracking
+is the structured blocker ID; resolving it requires actual evidence, not merely
+closing a job. Record failure/blocked outcomes just as carefully as successes.
+Change Stage/Responsible role through typed fields when appropriate; do not infer
+Project Status from a job result, issue closure or PR state. Refresh readiness
+and dispatch the next eligible action immediately. Never claim blocked implementation
+as an investigation; create an explicit bounded investigation scope first.
