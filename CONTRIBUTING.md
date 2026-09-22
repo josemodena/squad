@@ -48,5 +48,6 @@ through [SECURITY.md](SECURITY.md), not a public issue. Maintainers make release
 and scope decisions; issues and pull requests are the normal discussion record.
 There is no response-time commitment or paid support contract.
 
-The project licence decision is pending; no contributor licence agreement is
-requested. The contribution policy will follow the selected project licence.
+Unless explicitly stated otherwise, contributions intentionally submitted for
+inclusion are licensed under [Apache-2.0](LICENSE), as described in its Section 5.
+No separate contributor licence agreement is required.

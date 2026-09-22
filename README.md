@@ -217,6 +217,7 @@ and the [roadmap](docs/development/roadmap.md). Report sensitive findings throug
 
 ## Licence
 
-The licence decision is pending. See the [licence proposal](docs/development/licensing.md).
-Until a licence is applied, this repository is not yet an open-source release.
+Squad’s original code and documentation are open source under the
+[Apache License 2.0](LICENSE). See [licensing](docs/development/licensing.md)
+for contribution terms and third-party components.
 Squad is an independent community project, not an official OpenAI or Anthropic product.

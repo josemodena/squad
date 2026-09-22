@@ -1,14 +1,14 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "squad",
-  "version": "0.4.0+codex.20260922105043",
+  "version": "0.4.1+codex.20260922110815",
   "description": "Native agent coordination, six specialised roles, durable recovery and deterministic project tracking.",
   "author": {
     "name": "Squad"
   },
   "homepage": "https://github.com/josemodena/squad",
   "repository": "https://github.com/josemodena/squad",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "keywords": [
     "agents",
     "agile",
