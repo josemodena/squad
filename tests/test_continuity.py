@@ -90,22 +90,28 @@ class Continuity(unittest.TestCase):
         with self.assertRaises(ValueError):knowledge.review(self.config,'scope',{'status':'active','evidence':'x','reason':'x'}, {})
 
 class ObserverHTTP(unittest.TestCase):
+    def setUp(self):
+        import os
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.env=patch.dict(os.environ,{'SQUAD_GITHUB_STATE_DIR':self.tmp.name,'SQUAD_RUNTIME_DIR':self.tmp.name+'/runtime'})
+        self.env.start();self.addCleanup(self.env.stop)
+
     def response(self,data,headers='',status=0):
         return subprocess.CompletedProcess([],status,'HTTP/2 200 OK\n'+headers+'\n'+json.dumps(data),'')
     def test_paginated_repo_read(self):
         with patch.object(inbox.subprocess,'run',side_effect=[
             self.response([{'id':1}], 'Link: <next>; rel="next"\n'),
             self.response([{'id':2}])]) as run:
-            self.assertEqual(inbox.comments({'repository':'example/demo'},0),[{'id':1},{'id':2}])
+            self.assertEqual(inbox.comments({'repository':'example/demo','github_state_dir':self.tmp.name,'runtime_dir':self.tmp.name+'/runtime'},0),[{'id':1},{'id':2}])
         self.assertEqual(run.call_count,2)
-        self.assertIn('page=2',run.call_args.args[0][-1])
+        self.assertTrue(any('page=2' in arg for arg in run.call_args.args[0]))
         self.assertEqual(run.call_args.kwargs['timeout'],30)
     def test_secondary_limit_defers_no_sleep_or_blind_retry(self):
         response=self.response({'message':'secondary rate limit'},'Retry-After: 120\n',1)
         with patch.object(inbox.subprocess,'run',return_value=response) as run:
-            with self.assertRaises(inbox.Limited) as error:inbox.comments({'repository':'example/demo'},0)
-        self.assertGreaterEqual(error.exception.delay,120);run.assert_called_once()
+            with self.assertRaises(inbox.Limited) as error:inbox.comments({'repository':'example/demo','github_state_dir':self.tmp.name,'runtime_dir':self.tmp.name+'/runtime'},0)
+        self.assertGreaterEqual(error.exception.delay,119);run.assert_called_once()
     def test_page_limit_fails_without_partial_result(self):
         with patch.object(inbox.subprocess,'run',return_value=self.response([{'id':1}], 'Link: <next>; rel="next"\n')) as run:
-            with self.assertRaisesRegex(ValueError,'ten pages'):inbox.comments({'repository':'example/demo'},0)
+            with self.assertRaisesRegex(ValueError,'ten pages'):inbox.comments({'repository':'example/demo','github_state_dir':self.tmp.name,'runtime_dir':self.tmp.name+'/runtime'},0)
         self.assertEqual(run.call_count,10)

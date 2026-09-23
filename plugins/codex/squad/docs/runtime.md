@@ -201,3 +201,20 @@ proposes a lesson or decision; `memory review --id ID --file JSON --pm-job JOB`
 reviews it (a captured `--pm-session UUID` is also accepted). `memory list` shows
 committed project records. See the documentation's decisions-and-learning guide
 for schemas, privacy, retention, authority boundaries and observer limitations.
+
+## GitHub reads and grouped handoffs
+
+`ready`, `next` and `board-read` accept `--fresh`; otherwise their Project data may
+come from a shared 60-second cache whose age is printed on stderr. Claims always
+fetch the selected issue directly and recheck dependencies and authority.
+
+`fields ISSUE --file FILE` accepts a nonempty JSON object mapping field names to
+values. It validates all changes against one fresh board snapshot, skips no-ops,
+journals writes and verifies the changed item. It preserves option IDs and never
+adds Status implicitly. A failed operation can have partial writes: reconcile
+the journal before resuming. `field ISSUE NAME VALUE` uses the same implementation.
+
+`api-status` reports local counters and shared cooldowns without making a request.
+A recorded API reset is a durable wake condition; user pause and provider capacity
+still apply. Typed issue/PR reads use REST. Issue-only blocker writes save an
+issue backup and journal, while Project writes retain full fresh board backups.

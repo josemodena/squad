@@ -23,7 +23,9 @@ Start here:
   meeting status planning|retro  Inspect the meeting record
   status                         Show unfinished work and effective policy
   ready                          Explain eligibility and owned blockers
-  next                           Ordered continuation actions
+  next [--fresh]                 Ordered continuation actions
+  api-status                     Local API usage and shared cooldowns
+  fields ISSUE --file FILE        Apply a backed-up group of Project field changes
   blocker set ISSUE --file FILE  Publish an owned blocker and visible labels
   pm-claim JOB [OPTIONS]          Assign a stalled item to the Project Manager
   inbox poll|status               Observe GitHub replies or inspect observer health

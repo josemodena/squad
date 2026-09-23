@@ -23,9 +23,11 @@ its location does not identify the harness.
 | `squad init check` | Inspect existing project provisioning |
 | `squad init apply` | Create missing tracking/configured template resources |
 | `squad init create-board "TITLE"` | Create a GitHub Project using configured ownership |
-| `squad board` | Human-readable Project board |
+| `squad board [--fresh]` | Human-readable board with reported cache age |
 | `squad status` / `squad recover` | JSON recovery summary and effective policy |
-| `squad ready` | JSON eligibility and exclusion reasons |
+| `squad ready [--fresh]`, `squad next [--fresh]` | Shared board reads; current local ownership and quota checks |
+| `squad fields ISSUE --file FILE` | One backed-up, verified group of field changes |
+| `squad api-status` | Local request counters, budgets and cooldowns |
 | `squad pm-claim JOB --issue N --worktree DIR --brief FILE` | Bounded PM diagnosis of stopped work |
 | `squad inbox poll` / `inbox status` | Observe replies / inspect cadence and errors |
 | `squad context ROLE --issue N` | Role, authority and reviewed project records |

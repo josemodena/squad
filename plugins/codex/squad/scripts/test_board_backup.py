@@ -4,6 +4,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -51,13 +52,17 @@ class FakeAPI:
                 if 'name' in x:field['name']=x['name']
             elif 'updateProjectV2ItemFieldValue(' in query:
                 item=next(i for i in s['items'] if i['id']==x['itemId'])
-                item['fieldValues']['nodes']=copy.deepcopy(fixture()['items'][0]['fieldValues']['nodes'])
-                item['fieldValues']['nodes'][0]['optionId']=x['value']['singleSelectOptionId']
+                field=next(f for f in s['fields'] if f['id']==x['fieldId'])
+                item['fieldValues']['nodes']=[v for v in item['fieldValues']['nodes'] if v['field']['id']!=x['fieldId']]
+                typ,key=next((typ,key) for typ,(key,input_key) in b.SCALARS.items() if input_key in x['value'])
+                item['fieldValues']['nodes'].append({'__typename':typ,'field':{k:field[k] for k in ('id','name','dataType')},key:next(iter(x['value'].values()))})
             elif 'updateProjectV2View(' in query:
                 view=next(v for v in s['views'] if v['id']==x['viewId'])
                 for k in ('name','layout','filter'):view[k]=x[k]
             return {'ok':True}
         if 'projectV2(number' in query:return {'user':{'projectV2':copy.deepcopy(s['project'])}}
+        if 'ProjectV2Item{fieldValues' in query:
+            return {'node':{'fieldValues':copy.deepcopy(s['items'][0]['fieldValues'])}}
         for key in ('views','items','fields'):
             if key+'(first:' in query:return {'node':{key:conn(copy.deepcopy(s[key]))}}
         return {'node':{'updatedAt':s['project']['updatedAt']}}
@@ -222,21 +227,25 @@ class BoardBackup(unittest.TestCase):
 class RateLimits(unittest.TestCase):
     def response(self,body,headers='',code=0):
         return subprocess.CompletedProcess([],code,'HTTP/2.0 200 OK\nx-ratelimit-remaining: 100\n'+headers+'\n'+json.dumps(body),'')
-    def test_secondary_backoff_is_bounded(self):
-        sleeps=[];api=b.API(retries=2,sleep=sleeps.append)
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        patcher=patch.dict(os.environ,{'SQUAD_GITHUB_STATE_DIR':self.tmp.name,'SQUAD_RUNTIME_DIR':self.tmp.name+'/runtime'})
+        patcher.start();self.addCleanup(patcher.stop)
+    def test_secondary_backoff_is_shared_and_never_spins(self):
         response=self.response({'errors':[{'message':'secondary rate limit'}]})
         with patch.object(b.subprocess,'run',return_value=response) as run:
-            with self.assertRaises(ValueError):api.query('query{viewer{login}}')
-        self.assertEqual(run.call_count,3);self.assertEqual(sleeps,[60,120])
+            for _ in range(3):
+                with self.assertRaisesRegex(ValueError,'deferred'):b.API().query('query{viewer{login}}')
+        self.assertEqual(run.call_count,1)
     def test_retry_after_is_respected(self):
-        sleeps=[];api=b.API(sleep=sleeps.append)
-        with patch.object(b.subprocess,'run',side_effect=[self.response({'message':'rate limit'},'retry-after: 90\n',1),self.response({'data':{'ok':True}})]):
-            self.assertEqual(api.query('query{viewer{login}}'),{'ok':True})
-        self.assertEqual(sleeps,[90])
+        import github_io,time
+        with patch.object(b.subprocess,'run',return_value=self.response({'message':'rate limit'},'retry-after: 90\n',1)):
+            with self.assertRaises(ValueError):b.API().query('query{x}')
+        self.assertGreaterEqual(github_io.status(b.settings())['retry_at'],time.time()+89)
     def test_long_primary_reset_does_not_spin(self):
         response=self.response({'errors':[{'message':'rate limit'}]},'x-ratelimit-remaining: 0\nx-ratelimit-reset: 9999999999\n')
         with patch.object(b.subprocess,'run',return_value=response) as run:
-            with self.assertRaisesRegex(ValueError,'bounded'):b.API(sleep=lambda _:self.fail('must not sleep')).query('query{x}')
+            with self.assertRaisesRegex(ValueError,'deferred'):b.API().query('query{x}')
             self.assertEqual(run.call_count,1)
     def test_partial_mutation_error_is_never_retried(self):
         response=self.response({'data':{'write':{'id':'x'}},'errors':[{'message':'rate limit'}]})

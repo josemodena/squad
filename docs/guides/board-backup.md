@@ -114,12 +114,13 @@ See [GitHub's Project API reference](https://docs.github.com/en/graphql/referenc
 
 ## Limits and interrupted operations
 
-Requests are serial. Secondary-limit retries wait at least 60 seconds and then
-back off exponentially, honouring longer `Retry-After` or primary-reset headers.
-There are at most three retries per request, with a maximum permitted wait of
-300 seconds per retry; a longer required wait stops the operation. Mutations are
-spaced by at least one second. Authentication and validation failures are not
-retried. Partial GraphQL mutation responses are never blindly replayed.
+Coordinated requests are serial. A secondary limit records a delay of at least
+60 seconds, increased for repeated failures and honouring `Retry-After`. A primary
+limit honours GitHub's reset time. The command returns with a durable cooldown
+instead of sleeping and repeatedly retrying; other coordinated local processes
+share that wait. Mutations are never automatically replayed. With a conductor,
+the Administrator can resume after reset, inspect the journal and revalidate the
+remaining work. A user pause still prevents automatic resumption.
 
 A rate-budget preflight cannot reserve capacity or predict secondary limits.
 **GitHub has no transaction for a whole-board restore.** A failure after writes
@@ -136,3 +137,12 @@ sprint name alone is not authority to rewrite the board.
 
 Rate-limit behaviour follows GitHub's [GraphQL guidance](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api)
 and [REST guidance](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+
+## Routine handoffs and issue-only changes
+
+Use `squad fields ISSUE --file FILE` for related Stage and Responsible role changes.
+It takes one fresh full board snapshot for the group, journals its writes and
+verifies the changed item. Do not include Status without an authorised transition.
+Blocker updates only edit the issue body and labels; they save a versioned issue
+backup and journal instead of a full board export. These issue records are not
+inputs to `board restore`. See [API efficiency](github-api.md) for details.

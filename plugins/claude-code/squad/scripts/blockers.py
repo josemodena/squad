@@ -110,7 +110,7 @@ def verify_claim_inputs(path):
 
 
 def edit(config,issue,record=None,resolution=None,blocker_id=None,pm_job=None,pm_session=None):
-    """Back up first; preserve issue text/labels and journal every GraphQL write."""
+    """Back up the affected issue; no Project field, option or view is mutated."""
     import board_backup as b
     if record is not None and record.get('requires_user'):
         from knowledge import pm_source
@@ -118,10 +118,8 @@ def edit(config,issue,record=None,resolution=None,blocker_id=None,pm_job=None,pm
         for key in ('authority_boundary','consequence'):
             if not record.get(key): raise ValueError('PM user request requires '+key)
         record={**record,'pm_review':source,'created_at':time.time()}
-    api=b.API();store=b.Store(config)
+    api=b.API(config=config);store=b.Store(config)
     with store.lock():
-        snapshot=b.capture(api,config)
-        before=store.save(snapshot,'before-blocker-write')
         owner,repo=config['repository'].split('/',1)
         decider_label=config.get('decider_label','action-for-decider')
         names=['blocked',ATTENTION,decider_label]
@@ -132,6 +130,7 @@ def edit(config,issue,record=None,resolution=None,blocker_id=None,pm_job=None,pm
         if not item:raise ValueError('Issue not found')
         if item['labels']['pageInfo']['hasNextPage']:
             b.finish_nested(api,[(item['labels'],item['id'],'Issue','labels','id name',None)])
+        before=store.save({'kind':'issue-backup','repository':config['repository'],'issue':issue,'item':item},'before-blocker-write')
         rows=parse(item['body'])
         if record is not None:
             validate(record)
@@ -184,7 +183,7 @@ def edit(config,issue,record=None,resolution=None,blocker_id=None,pm_job=None,pm
 
 def visibility(config):
     import board_backup as b
-    api=b.API();store=b.Store(config)
+    api=b.API(config=config);store=b.Store(config)
     with store.lock():
         snapshot=b.capture(api,config);before=store.save(snapshot,'before-blocker-visibility')
         label=next((f for f in snapshot['fields'] if f.get('dataType')=='LABELS'),None)
@@ -210,6 +209,7 @@ def main():
     s=sub.add_parser('resolve');s.add_argument('issue',type=int);s.add_argument('--id',required=True);s.add_argument('--file',required=True)
     sub.add_parser('visibility')
     a=p.parse_args();config=settings(os.environ.get('SQUAD_SETTINGS_FILE'))
+    os.environ['SQUAD_API_OPERATION']='blocker-'+a.action
     if a.action=='visibility':print(json.dumps(visibility(config)));return
     value=json.loads(Path(a.file).read_text())
     result=edit(config,a.issue,record=value,pm_job=a.pm_job,pm_session=a.pm_session) if a.action=='set' else edit(config,a.issue,resolution=value,blocker_id=a.id)

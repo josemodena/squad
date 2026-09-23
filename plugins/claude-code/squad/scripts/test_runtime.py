@@ -20,6 +20,10 @@ class RuntimeTest(unittest.TestCase):
         self.config = {'scratch_root':self.tmp.name,'repository':'x/y','project_owner':'x','project_number':'1','engineer_model':'sol','engineering_reviewer_model':'sol','max_workers':'2'}
         self.item = {'number':1,'state':'OPEN','fields':{'Agreement':'Agreed','Stage':'engineering','Responsible role':'engineer','Design':'Existing','Status':'This sprint','Estimate (credits %)':2},'dependencies':[]}
         self.quota = {'verdict':'run','headroom':10,'policy':{'mode':'pacing'}}
+        self.config['github_state_dir']=self.tmp.name+'/api'
+        import github_io
+        transport=patch.object(github_io,'request',side_effect=AssertionError('Unexpected network call in runtime fixture'))
+        transport.start();self.addCleanup(transport.stop)
         self.worktree = Path(self.tmp.name)/'repo'; self.worktree.mkdir()
         def git(*args): return subprocess.run(['git','-C',str(self.worktree),*args],check=True,capture_output=True)
         git('init'); git('config','user.email','test@example.org'); git('config','user.name','Test')
@@ -96,21 +100,21 @@ class RuntimeTest(unittest.TestCase):
         self.claim();self.cli('complete','j1','--result','completed','--report',str(self.report))
         with patch.object(sys,'argv',['runtime','ack','j1']),patch.object(r,'settings',return_value=self.config),self.assertRaisesRegex(ValueError,'owned handoff'):
             r.main()
-    def test_rest_pagination_supports_older_gh_without_slurp(self):
-        stream = ' \n[{"title":"brackets ][ inside a string"}]\n[]\n[{"number":2}] \n'
-        with patch.object(r, 'run', return_value=stream) as run:
-            self.assertEqual(r.pages('repos/example/demo/issues'),
-                             [{'title':'brackets ][ inside a string'}, {'number':2}])
-        run.assert_called_once_with('gh', 'api', '--paginate', 'repos/example/demo/issues', json_output=False)
-    def test_rest_pagination_rejects_malformed_or_non_array_pages(self):
-        for stream in ('[] trailing', '[{}] {"message":"error"}', '[{}] ['):
-            with self.subTest(stream=stream), patch.object(r, 'run', return_value=stream):
-                with self.assertRaises(ValueError):
-                    r.pages('repos/example/demo/issues')
+    def test_rest_pagination_follows_link_headers(self):
+        import github_io
+        responses=[([{'title':'brackets ][ inside a string'}],{'link':'<repos/example/demo/issues?page=2>; rel="next"'},200),([{'number':2}],{},200)]
+        with patch.object(github_io,'request',side_effect=responses) as request:
+            self.assertEqual(r.pages('repos/example/demo/issues'),[{'title':'brackets ][ inside a string'},{'number':2}])
+        self.assertEqual(request.call_args.args[1],['repos/example/demo/issues?page=2'])
+    def test_rest_pagination_rejects_non_array_pages(self):
+        import github_io
+        for data in ({'message':'error'},None,'invalid'):
+            with self.subTest(data=data),patch.object(github_io,'request',return_value=(data,{},200)):
+                with self.assertRaises(ValueError):r.pages('repos/example/demo/issues')
     def test_rest_pagination_propagates_command_failure(self):
-        with patch.object(r, 'run', side_effect=ValueError('authentication failed')):
-            with self.assertRaisesRegex(ValueError, 'authentication failed'):
-                r.pages('repos/example/demo/issues')
+        import github_io
+        with patch.object(github_io,'request',side_effect=ValueError('authentication failed')):
+            with self.assertRaisesRegex(ValueError,'authentication failed'):r.pages('repos/example/demo/issues')
     def claim(self,job='j1'):
         return self.cli('claim',job,'--issue','1','--role','engineer','--worktree',str(self.worktree),'--brief',str(self.brief),'--readiness',str(self.assessment))
     def test_claim_blocks_duplicate_issue_and_id(self):
