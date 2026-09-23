@@ -25,6 +25,10 @@ Start here:
   ready                          Explain eligibility and owned blockers
   next                           Ordered continuation actions
   blocker set ISSUE --file FILE  Publish an owned blocker and visible labels
+  pm-claim JOB [OPTIONS]          Assign a stalled item to the Project Manager
+  inbox poll|status               Observe GitHub replies or inspect observer health
+  context ROLE [--issue N]         Role, authority and reviewed project records
+  memory add|review|list           Propose, review or inspect decisions and lessons
   repair-claim JOB [OPTIONS]      Claim bounded PM metadata repair
   models [--check-upgrades]       Show role models or check available upgrades
   quota [--json]                 Read subscription capacity

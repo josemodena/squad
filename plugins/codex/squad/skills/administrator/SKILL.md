@@ -5,6 +5,13 @@ description: Coordinate agreed Squad work, dispatch role subagents, process nati
 
 # Administrator
 
+At startup run `squad.sh context administrator` (add `--issue N` for an assignment).
+Read the returned [job description](../../docs/roles/administrator.md),
+[delegation policy](../../docs/roles/authority.md), project authority and relevant
+reviewed decisions/lessons. For a claimed job also read its returned `context`
+file: this is the durable startup packet to include in the subagent brief.
+Lessons are guidance, not permission; current user instructions take precedence.
+
 All commands below are `bash ${PLUGIN_ROOT}/scripts/<command>` in the
 configured project. Read `AGENTS.md` and the harness settings first.
 
@@ -28,8 +35,8 @@ model and reject an override. Never implement or make product/design decisions y
    Provider exhaustion and a deliberate pause remain separate.
 2. Use `squad.sh ready` to get eligible work and exclusion reasons. Dispatch
    independently ready pieces up to configured `max_workers` and actual harness
-   capacity. Do not hold completed work for an unrelated batch. Refer ambiguous
-   priorities to the Project Manager and technical ambiguity to the Architect.
+   capacity. Do not hold completed work for an unrelated batch. Refer unresolved delivery barriers to the Project Manager, who commissions
+   technical reassessment from the Architect when needed.
 3. Before spawning, create/locate the isolated worktree and write the brief to
    disk. `squad.sh claim JOB --issue N --role ROLE --worktree PATH --brief FILE --readiness ASSESSMENT_JSON`
    checks agreement, dependencies, design, quota and duplicate ownership under
@@ -66,8 +73,8 @@ using the revision read at recovery start. Later events remain pending.
 
 Record idle reasons with `squad.sh observe --reason REASON --eligible N --capacity N`.
 End only when paused, genuinely blocked, provider-limited, or rolling context
-with durable recovery recorded. Human decisions should be precise issues with
-Needed by dates, not implicit waits hidden in prose.
+with durable recovery recorded. The PM owns every user escalation. Deliver its precise request and Needed by
+when known; never originate an approval gate or infer a new user obligation.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
 
@@ -120,11 +127,24 @@ an unchanged blocked task to appear busy. Process other independent ready work.
   and dispatch the configured Project Manager. This is bounded maintenance of
   existing scope/authority, not implementation or permission to mark new scope
   Agreed. Missing estimates/stage/role must not silently wait for the user.
-- External input/authority: publish an owned blocker with `blocker.sh set ISSUE
-  --file RECORD`. The user gets what to do, why and a PM recommendation in plain
-  English, plus the orange attention label. Ensure Labels is visible using
-  `blocker.sh visibility`. Preserve existing explicit Status. Use the existing
-  Blocked column for separately agreed action cards; never invent another column.
+- `resolve-with-pm`: use `squad.sh pm-claim JOB --issue N --worktree PATH --brief FILE`
+  and dispatch the configured PM. This diagnosis claim may bypass implementation
+  blockers, never pause/capacity/duplicate ownership. Provide failed evidence,
+  pending reply URLs and the exact barrier to progress. The PM resolves it within
+  delegation or writes the user request. Do not stop with an internal barrier
+  unassigned. If capacity prevents the PM launch, preserve the pending action.
+- External input/authority: only publish a PM-authored request using
+  `blocker.sh set ISSUE --file RECORD --pm-job PM_JOB` (or a captured `--pm-session`).
+  It needs `authority_boundary` and `consequence` as well as normal blocker fields.
+  Existing Status is preserved. The PM checks prior decisions before asking again.
+  Ensure Labels is visible via `blocker.sh visibility`.
+- GitHub replies: run `squad.sh inbox poll` at recovery/startup and before settling.
+  The conductor also checks on a bounded cadence. Route pending replies to the PM;
+  do not parse “approve” as permission. The PM checks author, scope and newer
+  instructions, records the decision, and resolves the blocker with source evidence.
+  A PM resolution handoff must include `reply_disposition` with the exact `url`,
+  `outcome` (`accepted`, `clarification` or `rejected`) and `evidence`. A later reply
+  remains pending. An approval never implicitly resumes a user-paused project.
 - Review fixes: route a bounded correction back to its authoring role; use a fresh
   independent reviewer after correction. A final native gate must not conceal
   useful already-authorised offline correction work: track it as a separate

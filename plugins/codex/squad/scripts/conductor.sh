@@ -141,6 +141,12 @@ worker_terminal_event() {
   queue_event "$event_id" job "$reason" "$(now)" worker-lifecycle
 }
 
+# Observe replies without spending model capacity or changing board state.
+# Errors persist a bounded backoff; normal recovery must still process other work.
+if [ "$SQUAD_CONTINUATION_MODE" = native ]; then
+  bash "$SCRIPT_DIR/runtime.sh" inbox poll >/dev/null 2>&1 || true
+fi
+
 # Native mode recovers from durable execution, not human-authored handover syntax.
 # Native notifications remain the normal path while the Administrator is active.
 if [ "$SQUAD_CONTINUATION_MODE" = native ] && [ ! -e "$HOLD" ] && [ ! -e "$STATE/current.json" ]; then
@@ -309,7 +315,7 @@ done
 jq '.phase="claimed"' "$STATE/current.json" >"$STATE/current.json.tmp" && mv -f "$STATE/current.json.tmp" "$STATE/current.json"
 ledger claimed --arg launch_id "$launch_id" --arg events "$event_ids"
 [ "${SQUAD_CONDUCTOR_FAIL_AT:-}" != after-claim ] || exit 99
-brief="Use the Squad administrator skill. Reconcile durable state through squad.sh recover and handle events $event_ids ($reasons). Use native subagent notifications; keep coordinating and wait on harness events while workers run. Claim before dispatch, bind the actual worker/model, checkpoint and acknowledge results. Use squad.sh ready for subsequent assignments. Settle the recovered revision only after handling it. Preserve user pauses. The handover summarises records; it is not the wake mechanism."
+brief="Use the Squad administrator skill. Reconcile durable state through squad.sh recover and handle events $event_ids ($reasons). Use native subagent notifications; keep coordinating and wait on harness events while workers run. Claim before dispatch, bind the actual worker/model, checkpoint and acknowledge results. Use squad.sh next for subsequent assignments and route stalled items/replies to the Project Manager. Settle the recovered revision only after handling it. Preserve user pauses. The handover summarises records; it is not the wake mechanism."
 if [ "$dry_run" -eq 1 ]; then
   for f in "$STATE"/claimed/*.json; do [ ! -e "$f" ] || mv "$f" "$STATE/pending/$(basename "$f")"; done
   rm -f "$STATE/current.json"; log dry-run "would start '$TAB' for events: $event_ids"; exit 0

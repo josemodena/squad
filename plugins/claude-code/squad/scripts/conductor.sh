@@ -68,6 +68,12 @@ done
 
 squad_load_settings
 
+# Observe replies without spending model capacity or changing board state.
+# Errors persist a bounded backoff; normal recovery must still process other work.
+if [ "$SQUAD_CONTINUATION_MODE" = native ]; then
+  bash "$SCRIPT_DIR/runtime.sh" inbox poll >/dev/null 2>&1 || true
+fi
+
 SESSION="$SQUAD_CONDUCTOR_SESSION"
 TAB="$SQUAD_CONDUCTOR_TAB"
 HARNESS="$SQUAD_CONDUCTOR_COMMAND"

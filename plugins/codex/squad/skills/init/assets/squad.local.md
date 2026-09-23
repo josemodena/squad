@@ -23,6 +23,12 @@ harness_watchlist:
 decider: THE DECIDER
 decider_label: action-for-decider
 administrator: Administrator
+# PM verifies these GitHub logins before accepting a decision; set during setup.
+decision_makers:
+# Optional project-specific delegation document path.
+authority_file:
+github_reply_observer: true
+github_reply_interval: 300
 administrator_model: gpt-6-luna
 project_manager_model: gpt-6-astra
 architect_model: gpt-6-astra

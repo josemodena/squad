@@ -100,3 +100,16 @@ otherwise the launcher uses `ZELLIJ_SESSION_NAME` from its environment. See the
 
 `decider` names the user in readiness requests; `decider_label` remains configurable.
 `metadata_repair_estimate` defaults to 0.5 weekly percentage points for a bounded PM repair headroom check. See [owned blockers](../guides/blockers.md).
+
+## Authority, replies and learning
+
+| Setting | Meaning |
+| --- | --- |
+| `authority_file` | Optional project delegation document path, loaded into role context |
+| `decision_makers` | Comma-separated GitHub logins whose identity the PM verifies for decisions |
+| `github_reply_observer` | `true` by default; `false` disables background reply observation |
+| `github_reply_interval` | Minimum seconds between comment scans, default 300, minimum 60 |
+| `knowledge_dir` | Private learning-store base; defaults to runtime `knowledge/`, namespaced by repository and Project |
+
+These settings do not grant additional authority. See
+[decisions and learning](../guides/decisions-and-learning.md).

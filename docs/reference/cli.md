@@ -26,6 +26,10 @@ its location does not identify the harness.
 | `squad board` | Human-readable Project board |
 | `squad status` / `squad recover` | JSON recovery summary and effective policy |
 | `squad ready` | JSON eligibility and exclusion reasons |
+| `squad pm-claim JOB --issue N --worktree DIR --brief FILE` | Bounded PM diagnosis of stopped work |
+| `squad inbox poll` / `inbox status` | Observe replies / inspect cadence and errors |
+| `squad context ROLE --issue N` | Role, authority and reviewed project records |
+| `squad memory add` / `review` / `list` | Propose, review and inspect durable learning/decisions |
 | `squad models` | Role/model assignments |
 | `squad models --check-upgrades` | Read-only Codex upgrade suggestions and unfinished-job models |
 | `squad quota --json` | Capacity reading; exit 0 run, 1 suspend, 2 stale, 3 missing |

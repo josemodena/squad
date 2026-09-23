@@ -188,6 +188,10 @@ def eligible(items, state, config, quota=None):
         f = item['fields']
         import blockers
         records=blockers.explicit(item,config)
+        if state.get('pm_reply_pending',{}).get(str(item['number'])):
+            records.append({'reason':'reply-needs-pm-assessment','category':'metadata-repair-required',
+                            'owner':'project-manager','next_action':'Verify the new GitHub reply and reconcile authority before any new delivery claim.',
+                            'requires_user':False,'claimable':False})
         related=[j for j in state['jobs'].values() if j['issue']==item['number'] and j.get('handoff')]
         if related:
             last=max(related,key=lambda j:j.get('claimed_at',0))
@@ -221,11 +225,34 @@ def eligible(items, state, config, quota=None):
         reasons = list(dict.fromkeys([r['reason'] for r in records]))
         repair_reasons={'missing-estimate','role-stage-mismatch','invalid-blocker-metadata','unresolved-blocker-label'}
         repairable=f.get('Agreement')=='Agreed' and bool(set(reasons)&repair_reasons) and not state.get('paused') and not item.get('archived') and f.get(config.get('status_field','Status')) in ('This sprint','In progress','In review','Blocked') and not any(r in reasons for r in ('already-owned','closed')) and (not quota or quota.get('verdict')=='run')
+        key = hashlib.sha256(json.dumps({'reasons':[r for r in records if r['reason']!='reply-needs-pm-assessment'],'stage':stage,'role':role},sort_keys=True).encode()).hexdigest()
+        pending_reply = state.get('pm_reply_pending',{}).get(str(item['number']))
+        assessed = state.get('pm_resolutions',{}).get(str(item['number'])) == key
+        wait_records = [r for r in records if not (r['reason']=='outside-active-work' and f.get(config.get('status_field','Status'))=='Blocked')]
+        user_wait = bool(wait_records) and all(r.get('requires_user') and r.get('pm_review') for r in wait_records)
+        ordinary_wait = bool(reasons) and set(reasons) <= {'policy','provider-limit','insufficient-headroom','user-paused'}
+        pm_needed = bool(reasons) and not ordinary_wait and (bool(pending_reply) or not assessed and not user_wait)
+        pm_capacity = not quota or quota.get('verdict')=='run' and (quota.get('policy',{}).get('mode')=='unrestricted' or quota.get('headroom',0)>=float(config.get('metadata_repair_estimate',0.5)))
+        pm_allowed = pm_capacity and pm_needed and not state.get('paused') and not item.get('archived') and item['state'].upper()=='OPEN' and f.get(config.get('status_field','Status')) in ('This sprint','In progress','In review','Blocked') and 'already-owned' not in reasons and (not quota or quota.get('verdict')=='run')
+        pm_resolution = {'owner':'project-manager','claimable':pm_allowed,'needed':pm_needed,'key':key,
+                         'next_action':'Assess the delivery blocker and pending replies; resolve within delegated authority or prepare a PM-owned user request. No implementation is authorised by this diagnosis claim.'}
         answer.append({**item, 'role': role, 'stage': stage, 'eligible': not reasons, 'claimable':not reasons,
-                       'reasons': reasons, 'blockers':records, 'requires_user':any(r['requires_user'] for r in records),
+                       'pm_resolution':pm_resolution, 'reasons': reasons, 'blockers':records, 'requires_user':any(r['requires_user'] for r in records),
                        'next_actions':records, 'metadata_repair':{'owner':'project-manager','claimable':repairable,
                        'next_action':'Repair metadata from existing authority without changing scope or explicit Status; refresh readiness.'} if set(reasons)&repair_reasons else None})
     return sorted(answer, key=lambda i: (str(i['fields'].get('Priority', 'P2')), i['fields'].get('Needed by') or '9999', i['number']))
+
+
+def unassigned_pm_actions(state):
+    outstanding=[]
+    for item in state.get('readiness',{}).get('items',[]):
+        action=item.get('pm_resolution') or {}
+        number=item['number']
+        owned=any(j['issue']==number and (j['status'] in ACTIVE or not j.get('handled')) for j in state['jobs'].values())
+        assessed=state.get('pm_resolutions',{}).get(str(number))==action.get('key')
+        if action.get('claimable') and not owned and not assessed:
+            outstanding.append(number)
+    return outstanding
 
 
 def quota_read(config):
@@ -312,6 +339,10 @@ def parser():
     sub = p.add_subparsers(dest='command', required=True)
     for name in ('ready', 'next', 'recover', 'metrics', 'wake', 'state'):
         sub.add_parser(name)
+    s = sub.add_parser('context'); s.add_argument('role', choices=ROLES); s.add_argument('--issue',type=int)
+    s = sub.add_parser('inbox'); s.add_argument('action',choices=('poll','status','watch','unwatch')); s.add_argument('--issue',type=int); s.add_argument('--since'); s.add_argument('--force',action='store_true')
+    s = sub.add_parser('memory'); s.add_argument('action',choices=('add','review','list')); s.add_argument('--file'); s.add_argument('--id'); s.add_argument('--pm-job'); s.add_argument('--pm-session')
+    s = sub.add_parser('pm-claim'); s.add_argument('job'); s.add_argument('--issue',type=int,required=True); s.add_argument('--worktree',required=True); s.add_argument('--brief',required=True)
     s = sub.add_parser('models'); s.add_argument('--check-upgrades', action='store_true')
     pol = sub.add_parser('policy')
     pol.add_argument('--mode', choices=('pacing', 'weekly', 'unrestricted'))
@@ -346,7 +377,33 @@ def main():
     args = parser().parse_args()
     config = settings(os.environ.get('SQUAD_SETTINGS_FILE'))
     cmd = args.command
-    if cmd == 'models':
+    if cmd == 'context':
+        import knowledge
+        result = knowledge.context(config,args.role,args.issue)
+    elif cmd == 'memory':
+        import knowledge
+        if args.action == 'list': result = knowledge.committed(config)
+        elif args.action == 'add':
+            if not args.file: raise ValueError('memory add requires --file JSON')
+            result = knowledge.add(config, read(args.file))
+        else:
+            if not args.file or not args.id: raise ValueError('memory review requires --id and --file JSON')
+            source = knowledge.pm_source(config,args.pm_job,args.pm_session)
+            result = knowledge.review(config,args.id,read(args.file),source)
+    elif cmd == 'inbox':
+        import inbox
+        if args.action == 'poll': result = inbox.poll(config,args.force)
+        elif args.action == 'status': result = read(root(config)/'state.json',{}).get('reply_observer',{})
+        else:
+            if not args.issue or args.issue < 1: raise ValueError('--issue must be a positive issue number')
+            with transaction(config) as state:
+                watches = state.setdefault('reply_watches',{})
+                if args.action == 'watch':
+                    if not args.since: raise ValueError('watch requires --since ISO_TIMESTAMP covering the request and any prior reply')
+                    watches[str(args.issue)] = {'since':inbox.epoch(args.since)}
+                else: watches.pop(str(args.issue),None)
+                result = watches
+    elif cmd == 'models':
         result = {role: config.get(role.replace('-', '_')+'_model') for role in ROLES}
         if args.check_upgrades:
             from model_updates import check_upgrades
@@ -425,7 +482,8 @@ def main():
     elif cmd == 'review-record':
         root(config).mkdir(parents=True, exist_ok=True)
         report = Path(args.file).read_text()
-        actual = gh('pr','view',str(args.pr),'--repo',config['repository'],'--json','headRefOid')['headRefOid']
+        pr = gh('pr','view',str(args.pr),'--repo',config['repository'],'--json','headRefOid,labels')
+        actual = pr['headRefOid']
         if actual != args.head: raise ValueError('PR head changed after review; review the new head')
         marker = '<!-- squad-review-passed:'+args.head+' -->' if args.verdict == 'pass' else '<!-- squad-review-failed:'+args.head+' -->'
         # Stable marker + verdict avoids duplicate comments when a client loses its response.
@@ -435,7 +493,13 @@ def main():
             with tempfile.NamedTemporaryFile(mode='w', dir=root(config), suffix='.md') as f:
                 f.write(body); f.flush()
                 run('gh','pr','comment',str(args.pr),'--repo',config['repository'],'--body-file',f.name,json_output=False)
-        run('gh','pr','edit',str(args.pr),'--repo',config['repository'],'--add-label' if args.verdict == 'pass' else '--remove-label','review:passed',json_output=False)
+        # REST avoids gh pr edit's deprecated Project Classic projectCards query.
+        labels={label['name'] for label in pr.get('labels',[])}
+        endpoint='repos/'+config['repository']+'/issues/'+str(args.pr)+'/labels'
+        if args.verdict=='pass' and 'review:passed' not in labels:
+            gh('api',endpoint,'-X','POST','-f','labels[]=review:passed')
+        elif args.verdict!='pass' and 'review:passed' in labels:
+            gh('api',endpoint+'/review%3Apassed','-X','DELETE')
         result = {'pr':args.pr,'head':args.head,'verdict':args.verdict}
     elif cmd == 'field':
         result = field_set(config, args.issue, args.name, args.value)
@@ -448,19 +512,22 @@ def main():
             dep = gh('api', 'repos/'+config['repository']+'/issues/'+str(args.prerequisite))
             result = gh('api', endpoint, '-X', 'POST', '-F', 'issue_id='+str(dep['id'])) if args.action == 'add' else run('gh', 'api', endpoint+'/'+str(dep['id']), '-X', 'DELETE', json_output=False)
     else:
-        items = board(config) if cmd in ('ready', 'next', 'claim', 'repair-claim') else None
-        quota = quota_read(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'wake') else None
+        items = board(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'pm-claim') else None
+        quota = quota_read(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'pm-claim', 'wake') else None
         with transaction(config) as state:
             jobs = state['jobs']
             if cmd in ('ready','next'):
                 result = eligible(items, state, config, quota)
                 waiting = any(i['reasons'] and set(i['reasons']) <= {'policy','provider-limit','stale','missing','quota','quota-unreadable','insufficient-headroom'} for i in result)
                 required = min((i['fields'][config.get('estimate_field','Estimate (credits %)')] for i in result if i['reasons'] and set(i['reasons']) <= {'policy','provider-limit','stale','missing','quota','quota-unreadable','insufficient-headroom'}), default=0)
+                if (quota.get('verdict')!='run' or quota.get('policy',{}).get('mode')!='unrestricted' and quota.get('headroom',0)<float(config.get('metadata_repair_estimate',0.5))) and any(i['pm_resolution']['needed'] and not i.get('archived') and i['state'].upper()=='OPEN' and i['fields'].get(config.get('status_field','Status')) in ('This sprint','In progress','In review','Blocked') for i in result):
+                    waiting=True
+                    required=float(config.get('metadata_repair_estimate',0.5))
                 if waiting != state.get('capacity_wait',False) or required != state.get('capacity_required',0):
                     state['capacity_wait'] = waiting
                     state['capacity_required'] = required
                     event(state,'capacity-wait',waiting=waiting,required=required)
-                state['readiness']={'captured_at':time.time(),'items':[{k:i[k] for k in ('number','url','stage','role','blockers','metadata_repair') if k in i} for i in result if i['fields'].get('Agreement')=='Agreed' and not i['eligible']]}
+                state['readiness']={'captured_at':time.time(),'items':[{k:i[k] for k in ('number','url','stage','role','blockers','metadata_repair','pm_resolution') if k in i} for i in result if i['fields'].get('Agreement')=='Agreed' and not i['eligible']]}
                 active = sum(j['status'] in ('claimed','running') for j in jobs.values())
                 count = sum(i['eligible'] for i in result)
                 state['observations'].append({'at':time.time(), 'eligible':count, 'capacity':int(config.get('max_workers',3))-active, 'active':active, 'reason':'ready' if count else ('user-paused' if state['paused'] else quota.get('reason','blocked'))})
@@ -469,37 +536,49 @@ def main():
                     for i in result:
                         if i.get('archived') or i['state'].upper()!='OPEN' or ('outside-active-work' in i['reasons'] and i['fields'].get(config.get('status_field','Status'))!='Blocked'):continue
                         if i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
-                        elif i.get('metadata_repair') and i['metadata_repair']['claimable']:
+                        elif i.get('metadata_repair') and i['metadata_repair']['claimable'] and not state.get('pm_reply_pending',{}).get(str(i['number'])):
                             actions.append({'issue':i['number'],'action':'repair-metadata',**i['metadata_repair'],'requires_user':False})
-                            actions.extend({'issue':i['number'],'action':'request-user',**b} for b in i['blockers'] if b['requires_user'])
+                            actions.extend({'issue':i['number'],**b,'action':'await-pm-user-request' if b.get('pm_review') else 'pm-assessment-required','escalation_owner':'project-manager'} for b in i['blockers'] if b['requires_user'])
+                        elif i['pm_resolution']['claimable']:
+                            actions.append({'issue':i['number'],'action':'resolve-with-pm',**i['pm_resolution'],'requires_user':False})
                         else:
-                            actions.extend({'issue':i['number'],'action':'request-user' if b['requires_user'] else 'resolve-or-wait',**b} for b in i['blockers'])
-                    result={'actions':actions,'can_continue':any(a['action'] in ('dispatch','repair-metadata') for a in actions),
+                            actions.extend({'issue':i['number'],'action':'await-pm-user-request' if b.get('requires_user') and b.get('pm_review') else 'resolve-or-wait',**b} for b in i['blockers'])
+                    result={'actions':actions,'can_continue':any(a['action'] in ('dispatch','repair-metadata','resolve-with-pm') for a in actions),
                             'instruction':'Process all actionable handoffs; only wait on named external dependencies, user decisions, pause or capacity.'}
             elif cmd in ('pause','resume'):
                 state['paused'] = cmd == 'pause'; event(state, cmd, reason=args.reason); result = {'paused': state['paused']}
-            elif cmd in ('claim','repair-claim'):
+            elif cmd in ('claim','repair-claim','pm-claim'):
                 if not args.job or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-' for c in args.job): raise ValueError('invalid job id')
                 if sum(j['status'] in ('claimed','running') for j in jobs.values()) >= int(config.get('max_workers',3)): raise ValueError('worker capacity is full')
                 if args.job in jobs: raise ValueError('job id already exists; inspect it, do not launch twice')
                 item = next((i for i in eligible(items, state, config, quota) if i['number'] == args.issue), None)
                 repair=cmd=='repair-claim'
-                if not item or not (item.get('metadata_repair') and item['metadata_repair']['claimable'] if repair else item['eligible']): raise ValueError('not eligible: '+str(item and item['reasons']))
-                role='project-manager' if repair else args.role
-                if not repair and item['role'] != role: raise ValueError('assignment does not match responsible role')
+                resolution=cmd=='pm-claim'
+                if not item or not (item.get('pm_resolution',{}).get('claimable') if resolution else item.get('metadata_repair') and item['metadata_repair']['claimable'] if repair else item['eligible']): raise ValueError('not eligible: '+str(item and item['reasons']))
+                role='project-manager' if repair or resolution else args.role
+                if not (repair or resolution) and item['role'] != role: raise ValueError('assignment does not match responsible role')
                 import blockers
-                assessment={'kind':'metadata-repair','scope':'existing authority only'} if repair else blockers.verify_claim_inputs(args.readiness)
-                if repair and quota.get('policy',{}).get('mode')!='unrestricted' and quota.get('headroom',0)<float(config.get('metadata_repair_estimate',0.5)):
+                assessment={'kind':'resolution' if resolution else 'metadata-repair','scope':'diagnose and plan within existing authority only; no blocked implementation'} if repair or resolution else blockers.verify_claim_inputs(args.readiness)
+                if (repair or resolution) and quota.get('policy',{}).get('mode')!='unrestricted' and quota.get('headroom',0)<float(config.get('metadata_repair_estimate',0.5)):
                     raise ValueError('insufficient headroom for bounded metadata repair')
                 model = config.get(role.replace('-', '_')+'_model')
                 if not model: raise ValueError('role model is not configured')
                 brief = Path(args.brief).read_text()
                 worktree = str(Path(args.worktree).resolve())
                 if not Path(worktree).is_dir(): raise ValueError('worktree must exist before claim')
-                job = {'id': args.job, 'issue': args.issue, 'role': role, 'kind':'metadata-repair' if repair else 'delivery', 'readiness_assessment':assessment, 'model': model, 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
+                job = {'id': args.job, 'issue': args.issue, 'role': role, 'kind':'resolution' if resolution else 'metadata-repair' if repair else 'delivery', 'readiness_assessment':assessment, 'model': model, 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
+                import knowledge
+                context_path = root(config)/'jobs'/args.job/'context.json'
+                atomic(context_path, knowledge.context(config,role,args.issue))
+                job['context'] = str(context_path)
+                if resolution:
+                    job['resolution_key'] = item['pm_resolution']['key']
+                    job['reply_seen'] = state.get('pm_reply_pending',{}).get(str(args.issue))
                 jobs[args.job] = job; event(state, 'claim', job=args.job); result = job
             elif cmd == 'settle':
                 if args.through > state['revision']: raise ValueError('cannot settle a future revision')
+                if not state.get('paused') and unassigned_pm_actions(state):
+                    raise ValueError('Unassigned PM resolution remains; refresh next and dispatch it before settling')
                 state['settled'] = max(state.get('settled', 0), args.through)
                 result = {'settled': state['settled']}
             elif cmd == 'external':
@@ -534,12 +613,21 @@ def main():
                 elif cmd == 'ack':
                     if job['status'] not in TERMINAL: raise ValueError('only a terminal job can be acknowledged')
                     if not job.get('handoff'):raise ValueError('record an owned handoff before acknowledging completion')
+                    if job.get('kind')=='resolution' and job['status']=='completed':
+                        number=str(job['issue'])
+                        if job.get('reply_seen'):
+                            disposition=job['handoff'].get('reply_disposition',{})
+                            if disposition.get('url')!=(job['reply_seen'].get('url') if isinstance(job['reply_seen'],dict) else job['reply_seen']) or disposition.get('outcome') not in ('accepted','clarification','rejected') or not disposition.get('evidence'):
+                                raise ValueError('PM handoff must record reply_disposition: exact URL, outcome and evidence')
+                            if state.get('pm_reply_pending',{}).get(number)==job['reply_seen']:
+                                state['pm_reply_pending'].pop(number)
+                        state.setdefault('pm_resolutions',{})[number]=job['resolution_key']
                     job['handled'] = True
                 elif cmd == 'retry':
                     if job['status'] != 'interrupted': raise ValueError('only interrupted jobs can be released after checking native worker and processes')
                     job.update({'status':'cancelled', 'handled': True, 'recovery_reason': args.reason})
                 event(state, cmd, job=args.job); result = job
-            elif cmd in ('state','recover'): result = state if cmd == 'state' else {'revision': state['revision'], 'external_events': [e for e in state['events'] if e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0)], 'paused': state['paused'], 'jobs': [j for j in jobs.values() if j['status'] in ACTIVE or not j.get('handled')], 'policy': policy(config), 'readiness':state.get('readiness',{'captured_at':None,'items':[]})}
+            elif cmd in ('state','recover'): result = state if cmd == 'state' else {'revision': state['revision'], 'external_events': [e for e in state['events'] if e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0)], 'pm_reply_pending':state.get('pm_reply_pending',{}), 'reply_observer':{k:v for k,v in state.get('reply_observer',{}).items() if k!='seen'}, 'paused': state['paused'], 'jobs': [j for j in jobs.values() if j['status'] in ACTIVE or not j.get('handled')], 'policy': policy(config), 'readiness':state.get('readiness',{'captured_at':None,'items':[]})}
             elif cmd == 'observe':
                 if min(args.eligible, args.capacity) < 0: raise ValueError('counts cannot be negative')
                 observation = {'at': time.time(), 'eligible': args.eligible, 'capacity': args.capacity, 'active': sum(j['status'] in ('claimed','running') for j in jobs.values()), 'reason': args.reason}
@@ -585,7 +673,7 @@ def main():
                 if capacity_ready and not state.get('capacity_ready',False):
                     event(state,'capacity-available',required=state.get('capacity_required',0))
                 state['capacity_ready'] = capacity_ready
-                actionable = any(j['status'] in ACTIVE or not j.get('handled') for j in jobs.values())
+                actionable = bool(state.get('pm_reply_pending')) or bool(unassigned_pm_actions(state)) or any(j['status'] in ACTIVE or not j.get('handled') for j in jobs.values())
                 external = any(e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0) for e in state['events'])
                 result = {'ready': not state['paused'] and quota['verdict'] == 'run' and (actionable or external or capacity_ready), 'reason': 'reconcile durable execution and external changes', 'id': 'runtime-'+str(state['revision']), 'quota': quota}
             else: raise ValueError('unsupported command')
