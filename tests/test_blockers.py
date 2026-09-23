@@ -37,8 +37,8 @@ class Blockers(unittest.TestCase):
                 fields=[{'__typename':'ProjectV2ItemFieldSingleSelectValue','field':{'name':'Status'},'optionId':'original-id','name':'In progress'}]
                 return {'node':{'items':{'nodes':[{'id':'PI','isArchived':False,'content':content,'fieldValues':{'nodes':fields,'pageInfo':{'hasNextPage':False}}}], 'pageInfo':{'hasNextPage':False}}}}
         api=API()
-        with patch('board_backup.API',return_value=api):items=r.board({'project_owner':'x','project_number':'1','repository':'x/y'})
-        self.assertEqual(len(api.calls),2);self.assertIn('blockedBy(first:100)',api.calls[1])
+        with patch('board_backup.API',return_value=api):items=r.fetch_board({'project_owner':'x','project_number':'1','repository':'x/y'})
+        self.assertEqual(len(api.calls),2);self.assertIn('blockedBy(first:20)',api.calls[1])
         self.assertEqual(items[0]['fields']['Status'],'In progress');self.assertEqual(items[0]['dependencies'][0]['state'],'OPEN')
 
 if __name__=='__main__':unittest.main()
@@ -48,9 +48,10 @@ class BlockerWrites(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             config={'scratch_root':tmp,'project_owner':'fixture','project_number':'1','repository':'fixture/demo'}
-            with patch('board_backup.API') as api,patch('board_backup.capture',side_effect=ValueError('rate limited')):
+            with patch('board_backup.API') as api,patch('board_backup.Store.save',side_effect=ValueError('backup failed')):
+                api.return_value.query.return_value={'repository':{'id':'R','issue':{'id':'I','body':'','labels':{'nodes':[],'pageInfo':{'hasNextPage':False}}}}}
                 with self.assertRaises(ValueError):b.edit(config,1,record={})
-                api.return_value.query.assert_not_called()
+                self.assertFalse(any(call.args[0].startswith('mutation') for call in api.return_value.query.call_args_list))
     def test_issue_edit_preserves_text_unrelated_labels_and_project_options(self):
         import tempfile
         class API:

@@ -11,6 +11,8 @@ install a recovery service for your first project.
 
 ## Guides
 
+- [GitHub API usage and rate-limit recovery](guides/github-api.md)
+
 - [Decisions, stalled work and learning](guides/decisions-and-learning.md)
 - [Role job descriptions and delegation](roles/README.md)
 - [Direct planning and retrospective meetings](guides/meetings.md)

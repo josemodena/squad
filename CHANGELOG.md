@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.5.1 — 2026-09-23
+
+- Share short-lived board reads across commands while revalidating each selected
+  task directly before claims; reduce nested readiness query sizes.
+- Group field handoffs into one fresh backup, prevalidated journal and targeted
+  verification; avoid writing unchanged values.
+- Back up issue-only blocker edits at issue scope without exporting the board.
+- Coordinate typed GraphQL/REST requests across local projects, record usage and
+  defer retries durably; wake after cooldown while preserving user pauses.
+- Use REST for typed issue/PR reads and conditional single-page reply polling.
+- Document free-account operation, measured coverage and remaining API boundaries.
+
 ## 0.5.0 — 2026-09-23
 
 - Make the PM responsible for delivery resolution and all user escalations, with

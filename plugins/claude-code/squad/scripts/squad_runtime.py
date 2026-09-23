@@ -123,38 +123,83 @@ def run(*args, json_output=True):
 
 
 def gh(*args):
+    if args and args[0]=='api':
+        import github_io, tracker_cache
+        config=settings(os.environ.get('SQUAD_SETTINGS_FILE'))
+        mutation=any(x in args for x in ('-f','-F','--input')) or any(args[i+1] not in ('GET','HEAD') for i,x in enumerate(args[:-1]) if x in ('-X','--method'))
+        if mutation: tracker_cache.invalidate(config)
+        try:
+            return github_io.request(config,list(args[1:]),resource='core',mutation=mutation)[0]
+        finally:
+            if mutation: tracker_cache.invalidate(config)
     return run('gh', *args)
 
 
 def pages(endpoint):
-    # Older supported gh versions emit successive JSON arrays without --slurp.
-    stream = run('gh', 'api', '--paginate', endpoint, json_output=False)
-    decoder, offset, items = json.JSONDecoder(), 0, []
-    while offset < len(stream):
-        if stream[offset].isspace():
-            offset += 1
-            continue
-        page, offset = decoder.raw_decode(stream, offset)
-        if not isinstance(page, list):
-            raise ValueError('Expected a JSON array from paginated GitHub REST endpoint')
-        items.extend(page)
-    return items
+    import github_io,re
+    config=settings(os.environ.get('SQUAD_SETTINGS_FILE'))
+    items=[];seen=set()
+    for _ in range(100):
+        if endpoint in seen: raise ValueError('Repeated REST pagination cursor')
+        seen.add(endpoint)
+        data,headers,_=github_io.request(config,[endpoint],resource='core')
+        if not isinstance(data,list): raise ValueError('Expected a JSON array from paginated GitHub REST endpoint')
+        items.extend(data)
+        match=re.search(r'<([^>]+)>; rel="next"',headers.get('link',''))
+        if not match: return items
+        endpoint=match[1]
+    raise ValueError('REST pagination exceeded 100 pages; no partial result returned')
 
 
-def board(config, dependencies=True):
+def tracker_read(config, number, pr=False):
+    prefix='repos/'+config['repository']
+    data=gh('api',prefix+('/pulls/' if pr else '/issues/')+str(number))
+    comments=pages(prefix+'/issues/'+str(number)+'/comments?per_page=100')
+    result={'number':data['number'],'title':data['title'],'body':data.get('body') or '',
+            'state':('MERGED' if data.get('merged') else data['state'].upper()),
+            'comments':[{'id':c.get('node_id'),'body':c.get('body') or '', 'author':{'login':c['user']['login']},
+                         'createdAt':c['created_at'],'updatedAt':c['updated_at'],'url':c['html_url']} for c in comments]}
+    if pr:
+        files=pages(prefix+'/pulls/'+str(number)+'/files?per_page=100')
+        if len(files)!=data.get('changed_files'): raise ValueError('PR file list is incomplete; no partial review input returned')
+        result.update(headRefOid=data['head']['sha'],headRefName=data['head']['ref'],baseRefName=data['base']['ref'],
+                      files=[{'path':f['filename'],'additions':f['additions'],'deletions':f['deletions']} for f in files])
+    return result
+
+
+def fetch_board(config, dependencies=True, issue=None):
     """Paginated batched readiness reads with the same bounded API retries as backups."""
     import board_backup as b
-    api=b.API()
+    api=b.API(config=config)
     owner='organization' if config.get('project_owner_type') in ('org','organization') else 'user'
-    data=api.query('query($owner:String!,$number:Int!){'+owner+'(login:$owner){projectV2(number:$number){id}}}',
-                   {'owner':config['project_owner'],'number':int(config['project_number'])})
-    project=(data.get(owner) or {}).get('projectV2')
-    if not project: raise ValueError('Project missing or inaccessible')
-    issue='id number title state url body repository{nameWithOwner} labels(first:100){'+b.PAGE+'{name}}'
-    if dependencies: issue+=' blockedBy(first:100){'+b.PAGE+'{id number state url}}'
-    values=b.VALUE.replace(' optionId }',' optionId name }')
-    selection='id isArchived content{__typename ... on Issue{'+issue+'}} fieldValues(first:100){'+b.PAGE+'{'+values+'}}'
-    nodes=b.connection(api,project['id'],'items',selection,50)
+    issue_fields='id number title state url body repository{nameWithOwner} labels(first:20){'+b.PAGE+'{name}}'
+    if dependencies: issue_fields+=' blockedBy(first:20){'+b.PAGE+'{id number state url}}'
+    # Scheduling needs scalar values, not linked PRs, reviewers, milestones or views.
+    values='__typename '+ ' '.join('... on '+typ+' { field { '+b.REF+' } '+key+(' name' if key=='optionId' else '')+' }' for typ,(key,_) in b.SCALARS.items())
+    item_fields='id isArchived fieldValues(first:20){'+b.PAGE+'{'+values+'}}'
+    if issue is not None:
+        repo_owner, repo_name=config['repository'].split('/',1)
+        query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){issue(number:$number){'+issue_fields+' projectItems(first:10){'+b.PAGE+'{'+item_fields+' project{id number owner{... on User{login} ... on Organization{login}}}}}}}}'
+        result=api.query(query,{'owner':repo_owner,'repo':repo_name,'number':issue})
+        content=(result.get('repository') or {}).get('issue')
+        if not content: return []
+        projects=content.pop('projectItems')
+        if projects['pageInfo']['hasNextPage']:
+            b.finish_nested(api,[(projects,content['id'],'Issue','projectItems',item_fields+' project{id number owner{... on User{login} ... on Organization{login}}}',None)])
+        nodes=[]
+        for node in projects['nodes']:
+            project=node.pop('project')
+            if project['number']==int(config['project_number']) and project['owner']['login'].lower()==config['project_owner'].lower():
+                node['content']={'__typename':'Issue',**content};nodes.append(node)
+                break
+        if not nodes: return []
+    else:
+        data=api.query('query($owner:String!,$number:Int!){'+owner+'(login:$owner){projectV2(number:$number){id}}}',
+                       {'owner':config['project_owner'],'number':int(config['project_number'])})
+        project=(data.get(owner) or {}).get('projectV2')
+        if not project: raise ValueError('Project missing or inaccessible')
+        selection=item_fields+' content{__typename ... on Issue{'+issue_fields+'}}'
+        nodes=b.connection(api,project['id'],'items',selection,50)
     requests=[];items=[]
     for node in nodes:
         content=node['content']
@@ -170,7 +215,8 @@ def board(config, dependencies=True):
     for node in items:
         content=node['content'];fields={}
         for value in node['fieldValues']['nodes']:
-            if not value or 'field' not in value:raise ValueError('Unreadable Project field value')
+            if not value: raise ValueError('Unreadable Project field value')
+            if 'field' not in value: continue  # Non-scalar fields cannot affect readiness.
             name=value['field']['name']
             if value['__typename']=='ProjectV2ItemFieldSingleSelectValue':
                 # Readiness needs names as well as immutable option IDs.
@@ -180,6 +226,15 @@ def board(config, dependencies=True):
                        'dependencies':content['blockedBy']['nodes'] if dependencies else [],
                        'item_id':node['id'],'project_id':project['id'],'archived':node['isArchived']})
     return result
+
+
+def board(config, dependencies=True, issue=None, fresh=False):
+    if issue is not None or not dependencies:
+        return fetch_board(config,dependencies,issue)
+    import tracker_cache
+    items, freshness=tracker_cache.get(config,lambda:fetch_board(config,dependencies),fresh=fresh)
+    print('Squad board: '+json.dumps(freshness),file=sys.stderr)
+    return items
 
 
 def eligible(items, state, config, quota=None):
@@ -271,7 +326,7 @@ def quota_read(config):
 
 def backup_board(config):
     import board_backup as backup
-    api=backup.API();store=backup.Store(config)
+    api=backup.API(config=config);store=backup.Store(config)
     with store.lock():
         snapshot=backup.capture(api,config)
         api.preflight(10)
@@ -279,32 +334,61 @@ def backup_board(config):
 
 
 def field_set(config, issue, field, value):
+    result=fields_set(config,issue,{field:value})
+    return {**result,'field':field,'value':value}
+
+
+def fields_set(config, issue, values):
+    """One fresh snapshot and journal for an entire field handoff, never atomic by claim."""
     import board_backup as backup
-    api=backup.API();store=backup.Store(config)
+    if not isinstance(values,dict) or not values: raise ValueError('fields requires a nonempty JSON object')
+    api=backup.API(config=config);store=backup.Store(config)
     with store.lock():
         snapshot=backup.capture(api,config)
         item=next((i for i in snapshot['items'] if i['content'].get('number')==issue
                    and i['content'].get('repository',{}).get('nameWithOwner')==config['repository']),None)
-        entry=next((f for f in snapshot['fields'] if f['name']==field),None)
-        if not item or not entry: raise ValueError('Issue or field not found on project')
-        kind=entry['dataType']
-        if kind=='SINGLE_SELECT':
-            option=next((o for o in entry['options'] if o['name']==value),None)
-            if not option: raise ValueError('Unknown option for '+field)
-            new={'singleSelectOptionId':option['id']}
-        elif kind=='DATE':
-            dt.date.fromisoformat(value);new={'date':value}
-        elif kind=='NUMBER':
-            number=float(value)
-            if not math.isfinite(number): raise ValueError('Invalid number')
-            if field.startswith('Estimate') and number<0: raise ValueError('Invalid estimate')
-            new={'number':number}
-        elif kind=='TEXT': new={'text':value}
-        else: raise ValueError('Unsupported field type '+kind)
-        before=store.save(snapshot,'before-field')
-        args={'projectId':snapshot['project']['id'],'itemId':item['id'],'fieldId':entry['id'],'value':new}
-        backup.execute(api,store,{'blocked':[],'snapshot':before,'changes':[{'kind':'value','input':args}]})
-    return {'issue':issue,'field':field,'value':value,'snapshot':before}
+        if not item: raise ValueError('Issue not found on project')
+        changes=[];unchanged=[]
+        for field,value in values.items():
+            entry=next((f for f in snapshot['fields'] if f['name']==field),None)
+            if not entry: raise ValueError('Field not found on project: '+field)
+            kind=entry['dataType']
+            if kind=='SINGLE_SELECT':
+                option=next((o for o in entry['options'] if o['name']==value),None)
+                if not option: raise ValueError('Unknown option for '+field)
+                new={'singleSelectOptionId':option['id']};key='optionId'
+            elif kind=='DATE':
+                dt.date.fromisoformat(value);new={'date':value};key='date'
+            elif kind=='NUMBER':
+                number=float(value)
+                if not math.isfinite(number) or field.startswith('Estimate') and number<0: raise ValueError('Invalid number')
+                new={'number':number};key='number'
+            elif kind=='TEXT' and isinstance(value,str): new={'text':value};key='text'
+            else: raise ValueError('Unsupported field type or value: '+kind)
+            old=next((v for v in item['fieldValues']['nodes'] if v.get('field',{}).get('id')==entry['id']),None)
+            if old and old.get(key)==next(iter(new.values())):
+                unchanged.append(field);continue
+            args={'projectId':snapshot['project']['id'],'itemId':item['id'],'fieldId':entry['id'],'value':new}
+            changes.append({'kind':'value','input':args,'before':old})
+        before=store.save(snapshot,'before-fields')
+        if changes:
+            backup.execute(api,store,{'blocked':[],'snapshot':before,'changes':changes})
+            # Verify only the changed item, not a second full board export.
+            query='query($id:ID!){node(id:$id){... on ProjectV2Item{fieldValues(first:100){'+backup.PAGE+'{'+backup.VALUE+'}}}}}'
+            node=api.query(query,{'id':item['id']})['node']
+            if not node: raise ValueError('Changed item disappeared; inspect the field journal')
+            current=node['fieldValues']
+            if current['pageInfo']['hasNextPage']:
+                backup.finish_nested(api,[(current,item['id'],'ProjectV2Item','fieldValues',backup.VALUE,None)])
+            for change in changes:
+                actual=next((v for v in current['nodes'] if v.get('field',{}).get('id')==change['input']['fieldId']),None)
+                expected=change['input']['value']
+                key=next(iter(expected));stored='optionId' if key=='singleSelectOptionId' else key
+                if not actual or actual.get(stored)!=expected[key]:
+                    store.save({'status':'verification-failed','snapshot':before,'change':change,'actual':actual},'field-verification')
+                    raise ValueError('Field verification failed; inspect journal before retrying')
+            store.save({'status':'verified','snapshot':before,'issue':issue,'fields':values},'field-verification')
+    return {'issue':issue,'values':values,'changed':len(changes),'unchanged':unchanged,'snapshot':before}
 
 
 def checkpoint(job, source):
@@ -337,8 +421,11 @@ def checkpoint(job, source):
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
-    for name in ('ready', 'next', 'recover', 'metrics', 'wake', 'state'):
-        sub.add_parser(name)
+    for name in ('ready', 'next', 'board-read', 'recover', 'metrics', 'wake', 'state'):
+        command = sub.add_parser(name)
+        if name in ('ready','next','board-read'): command.add_argument('--fresh', action='store_true')
+    s = sub.add_parser('api-status')
+    s = sub.add_parser('fields'); s.add_argument('issue',type=int); s.add_argument('--file',required=True)
     s = sub.add_parser('context'); s.add_argument('role', choices=ROLES); s.add_argument('--issue',type=int)
     s = sub.add_parser('inbox'); s.add_argument('action',choices=('poll','status','watch','unwatch')); s.add_argument('--issue',type=int); s.add_argument('--since'); s.add_argument('--force',action='store_true')
     s = sub.add_parser('memory'); s.add_argument('action',choices=('add','review','list')); s.add_argument('--file'); s.add_argument('--id'); s.add_argument('--pm-job'); s.add_argument('--pm-session')
@@ -377,7 +464,15 @@ def main():
     args = parser().parse_args()
     config = settings(os.environ.get('SQUAD_SETTINGS_FILE'))
     cmd = args.command
-    if cmd == 'context':
+    os.environ['SQUAD_API_OPERATION'] = cmd
+    if cmd == 'board-read':
+        result=board(config,fresh=args.fresh)
+    elif cmd == 'api-status':
+        import github_io
+        result=github_io.status(config)
+    elif cmd == 'fields':
+        result=fields_set(config,args.issue,read(args.file))
+    elif cmd == 'context':
         import knowledge
         result = knowledge.context(config,args.role,args.issue)
     elif cmd == 'memory':
@@ -460,11 +555,7 @@ def main():
         result = process
         print(json.dumps(result)); sys.exit(0 if status == 0 else 1)
     elif cmd in ('issue-read','pr-read'):
-        kind = 'issue' if cmd == 'issue-read' else 'pr'
-        fields = 'number,title,body,state,comments' if kind == 'issue' else 'number,title,body,state,headRefOid,headRefName,baseRefName,comments,files'
-        result = gh(kind, 'view', str(args.issue if kind == 'issue' else args.pr), '--repo', config['repository'], '--json', fields)
-    elif cmd == 'comment':
-        result = run('gh', 'issue', 'comment', str(args.issue), '--repo', config['repository'], '--body-file', str(Path(args.file).resolve()), json_output=False)
+        result=tracker_read(config,args.issue if cmd=='issue-read' else args.pr,pr=cmd=='pr-read')
     elif cmd == 'review-prepare':
         pr = gh('pr', 'view', str(args.pr), '--repo', config['repository'], '--json', 'headRefOid,baseRefName')
         if pr['baseRefName'] != 'main': raise ValueError('review expects main as the integration base')
@@ -512,7 +603,7 @@ def main():
             dep = gh('api', 'repos/'+config['repository']+'/issues/'+str(args.prerequisite))
             result = gh('api', endpoint, '-X', 'POST', '-F', 'issue_id='+str(dep['id'])) if args.action == 'add' else run('gh', 'api', endpoint+'/'+str(dep['id']), '-X', 'DELETE', json_output=False)
     else:
-        items = board(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'pm-claim') else None
+        items = board(config,issue=args.issue) if cmd in ('claim','repair-claim','pm-claim') else board(config,fresh=args.fresh) if cmd in ('ready','next') else None
         quota = quota_read(config) if cmd in ('ready', 'next', 'claim', 'repair-claim', 'pm-claim', 'wake') else None
         with transaction(config) as state:
             jobs = state['jobs']
@@ -673,9 +764,16 @@ def main():
                 if capacity_ready and not state.get('capacity_ready',False):
                     event(state,'capacity-available',required=state.get('capacity_required',0))
                 state['capacity_ready'] = capacity_ready
+                import github_io
+                api_state=github_io.status(config)
+                retry_at=api_state.get('waiters',{}).get(config.get('repository'),0)
+                api_wait=retry_at>time.time()
+                if retry_at and not api_wait and retry_at>state.get('github_api_resumed',0):
+                    event(state,'external',external_id='github-api-'+str(retry_at),reason='GitHub API cooldown ended; revalidate and continue the pending operation.')
+                    state['github_api_resumed']=retry_at
                 actionable = bool(state.get('pm_reply_pending')) or bool(unassigned_pm_actions(state)) or any(j['status'] in ACTIVE or not j.get('handled') for j in jobs.values())
                 external = any(e['kind'] in ('external','resume','policy') and e.get('revision',0) > state.get('settled',0) for e in state['events'])
-                result = {'ready': not state['paused'] and quota['verdict'] == 'run' and (actionable or external or capacity_ready), 'reason': 'reconcile durable execution and external changes', 'id': 'runtime-'+str(state['revision']), 'quota': quota}
+                result = {'ready': not api_wait and not state['paused'] and quota['verdict'] == 'run' and (actionable or external or capacity_ready), 'reason': 'reconcile durable execution and external changes', 'id': 'runtime-'+str(state['revision']), 'quota': quota, 'github_retry_at': retry_at if api_wait else None}
             else: raise ValueError('unsupported command')
     print(json.dumps(result, sort_keys=True))
 

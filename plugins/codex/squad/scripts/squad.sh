@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Durable execution and typed tracker operations share one implementation.
 case "${1:-}" in
-  context|memory|inbox|pm-claim|ready|next|recover|metrics|wake|state|models|policy|pause|resume|observe|field|dependency|claim|repair-claim|bind|checkpoint|complete|handoff|ack|retry|external|settle|comment|issue-read|pr-read|issue-create|run|review-prepare|review-record)
+  board-read|api-status|fields|context|memory|inbox|pm-claim|ready|next|recover|metrics|wake|state|models|policy|pause|resume|observe|field|dependency|claim|repair-claim|bind|checkpoint|complete|handoff|ack|retry|external|settle|comment|issue-read|pr-read|issue-create|run|review-prepare|review-record)
     exec bash "$SCRIPT_DIR/runtime.sh" "$@" ;;
 esac
 
@@ -307,10 +307,7 @@ cmd_move() {
   require_issue_number "$number"
   status="$(squad_resolve_in_list "$SQUAD_STATUSES" "$status")" \
     || squad_die "Status must be one of: $(squad_list_inline "$SQUAD_STATUSES")"
-  load_project
-  local item_id
-  item_id="$(item_id_for_issue "$number")"
-  set_single_select "$item_id" "$SQUAD_STATUS_FIELD" "$status"
+  bash "$SCRIPT_DIR/runtime.sh" field "$number" "$SQUAD_STATUS_FIELD" "$status" >/dev/null
   printf 'issue #%s is now %s\n' "$number" "$status"
 }
 
@@ -369,65 +366,22 @@ cmd_needed_by() {
   [ -n "$number" ] && [ -n "$date" ] || usage
   require_issue_number "$number"
   require_date "$date"
-  load_project
-  local item_id
-  item_id="$(item_id_for_issue "$number")"
-  set_date "$item_id" "$SQUAD_NEEDED_BY_FIELD" "$date"
+  bash "$SCRIPT_DIR/runtime.sh" field "$number" "$SQUAD_NEEDED_BY_FIELD" "$date" >/dev/null
   printf 'issue #%s is needed by %s\n' "$number" "$date"
 }
 
 cmd_board() {
   local sprint_filter=""
+  local -a fresh=()
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --fresh) fresh=(--fresh); shift ;;
       --sprint) sprint_filter="${2:-}"; [ -n "$sprint_filter" ] || usage; shift 2 ;;
       *) squad_die "Unknown option '$1'." ;;
     esac
   done
-  load_project
-  local root
-  root="$(owner_root)"
-
-  local items cursor="" page has_next
-  items="[]"
-  while :; do
-    if [ -z "$cursor" ]; then
-      page="$(gh api graphql -f owner="$SQUAD_PROJECT_OWNER" -F number="$SQUAD_PROJECT_NUMBER" -f query="
-        query(\$owner: String!, \$number: Int!) {
-          $root(login: \$owner) { projectV2(number: \$number) { items(first: 100) {
-            pageInfo { hasNextPage endCursor }
-            nodes {
-              content { ... on Issue { number title url state } }
-              fieldValues(first: 30) { nodes {
-                ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } }
-                ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { name } } }
-                ... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2FieldCommon { name } } }
-              } }
-            }
-          } } }
-        }")"
-    else
-      page="$(gh api graphql -f owner="$SQUAD_PROJECT_OWNER" -F number="$SQUAD_PROJECT_NUMBER" -f cursor="$cursor" -f query="
-        query(\$owner: String!, \$number: Int!, \$cursor: String!) {
-          $root(login: \$owner) { projectV2(number: \$number) { items(first: 100, after: \$cursor) {
-            pageInfo { hasNextPage endCursor }
-            nodes {
-              content { ... on Issue { number title url state } }
-              fieldValues(first: 30) { nodes {
-                ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } }
-                ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { name } } }
-                ... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2FieldCommon { name } } }
-              } }
-            }
-          } } }
-        }")"
-    fi
-    items="$(jq -n --argjson a "$items" \
-      --argjson b "$(printf '%s' "$page" | jq -c --arg r "$root" '.data[$r].projectV2.items.nodes')" '$a + $b')"
-    has_next="$(printf '%s' "$page" | jq -r --arg r "$root" '.data[$r].projectV2.items.pageInfo.hasNextPage')"
-    [ "$has_next" = "true" ] || break
-    cursor="$(printf '%s' "$page" | jq -r --arg r "$root" '.data[$r].projectV2.items.pageInfo.endCursor')"
-  done
+  local items
+  items="$(bash "$SCRIPT_DIR/runtime.sh" board-read "${fresh[@]}")"
 
   local statuses_json
   statuses_json="$(printf '%s\n' "$SQUAD_STATUSES" | jq -R . | jq -sc 'map(select(. != "")) + ["No status"]')"
@@ -440,13 +394,11 @@ cmd_board() {
     --arg estimatefield "$SQUAD_ESTIMATE_FIELD" \
     --arg neededbyfield "$SQUAD_NEEDED_BY_FIELD" \
     --argjson statuses "$statuses_json" '
-    def field($n):
-      (.fieldValues.nodes[]? | select(.field.name == $n)
-        | (.name // .date // (.number | tostring))) // "";
-    map(select(.content != null))
+    def field($n): (.fields[$n] // "" | tostring);
+    map(select(.number != null and (.archived | not)))
     | map({
-        number: .content.number,
-        title:  .content.title,
+        number: .number,
+        title:  .title,
         status: (field($statusfield)   | if . == "" then "No status" else . end),
         owner:  (field("Owner")        | if . == "" then "-" else . end),
         est:    (field($estimatefield) | if . == "" then "-" else . end),

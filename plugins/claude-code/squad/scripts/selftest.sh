@@ -78,6 +78,8 @@ printf 'fake gh called: %s\n' "$*" >> "$FAKE_GH_LOG"
 exit 0
 FAKE
 chmod +x "$WORK/bin/gh"
+export SQUAD_GITHUB_STATE_DIR="$WORK/github-budget"
+export SQUAD_RUNTIME_DIR="$WORK/runtime"
 export SQUAD_BOARD_BACKUP_DIR="$WORK/board-backups"
 export FAKE_GH_LOG="$WORK/gh.log"
 : > "$FAKE_GH_LOG"

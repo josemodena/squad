@@ -67,47 +67,30 @@ def digest(value):
 
 
 class API:
-    def __init__(self, retries=3, max_wait=300, sleep=time.sleep):
-        self.retries, self.max_wait, self.sleep = retries, max_wait, sleep
+    def __init__(self, retries=3, max_wait=300, sleep=time.sleep, config=None):
+        # Retain constructor compatibility; retries are deferred across processes.
+        self.config = config if config is not None else settings(os.environ.get('SQUAD_SETTINGS_FILE') or os.environ.get('SQUAD_SETTINGS'))
         self.remaining = None
-        self.last_write = None
 
     def query(self, query, variables=None):
+        import github_io
         mutation = query.lstrip().startswith('mutation')
-        for attempt in range(self.retries+1):
-            if mutation and self.last_write is not None:
-                self.sleep(max(0, 1-(time.monotonic()-self.last_write)))
-            result = subprocess.run(['gh','api','graphql','--include','--input','-'],
-                input=json.dumps({'query':query,'variables':variables or {}}), capture_output=True, text=True)
-            if mutation:
-                self.last_write = time.monotonic()
-            output = result.stdout.replace('\r\n','\n')
-            headers = {}
-            while output.startswith('HTTP/'):
-                head, sep, output = output.partition('\n\n')
-                if not sep: raise ValueError('Incomplete GitHub HTTP response')
-                headers.update({k.lower().strip():v.strip() for line in head.splitlines()[1:] if ':' in line for k,v in [line.split(':',1)]})
-            try: payload = json.loads(output)
-            except ValueError: payload = {}
-            if 'x-ratelimit-remaining' in headers:
-                self.remaining = int(headers['x-ratelimit-remaining'])
-            message = json.dumps(payload.get('errors',payload.get('message',''))) + result.stderr
-            limited = any(s in message.lower() for s in ('rate limit','rate_limit','secondary limit','abuse detection'))
-            limited |= 'retry-after' in headers or (self.remaining == 0 and bool(result.returncode or payload.get('errors')))
-            if not result.returncode and not payload.get('errors') and isinstance(payload.get('data'),dict):
-                return payload['data']
-            # GraphQL can report partial success: never replay an ambiguous mutation.
-            if limited and not (mutation and payload.get('data')) and attempt < self.retries:
-                delay = max(60 * 2**attempt, float(headers.get('retry-after',0)))
-                if self.remaining == 0 and 'x-ratelimit-reset' in headers:
-                    delay = max(delay, float(headers['x-ratelimit-reset'])-time.time()+1)
-                if delay > self.max_wait:
-                    raise ValueError(f'GitHub rate limit: retry after at least {delay:.0f}s; required wait exceeds bounded retry window')
-                print(f'GitHub rate limited; waiting {delay:.0f}s before retry {attempt+1}/{self.retries}', file=sys.stderr, flush=True)
-                self.sleep(delay)
-                continue
-            raise ValueError('GitHub request failed; no further writes: '+message[:1500])
-        raise ValueError('GitHub retry budget exhausted')
+        if mutation:
+            import tracker_cache
+            tracker_cache.invalidate(self.config)
+        measured = not mutation
+        if measured:
+            end = query.rfind('}')
+            query = query[:end]+' _squadRate:rateLimit{cost} '+query[end:]
+        try:
+            payload, headers, _ = github_io.request(self.config, ['graphql','--input','-'],
+                mutation=mutation, stdin=json.dumps({'query':query,'variables':variables or {}}), cost_query=measured)
+        finally:
+            if mutation: tracker_cache.invalidate(self.config)
+        if 'x-ratelimit-remaining' in headers: self.remaining = int(headers['x-ratelimit-remaining'])
+        if not isinstance(payload,dict) or not isinstance(payload.get('data'),dict):
+            raise ValueError('Incomplete GraphQL response')
+        return payload['data']
 
     def preflight(self, writes):
         if writes and (self.remaining is None or self.remaining < writes+20):
@@ -385,7 +368,6 @@ def main():
             if key=='query': query=val
             else: variables[key]=int(val) if flag=='-F' and val.isdigit() else val
         if not query: raise ValueError('Missing query')
-        if query.lstrip().startswith('mutation'): time.sleep(1)
         print(json.dumps({'data':API().query(query,variables)}));return
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
@@ -396,7 +378,8 @@ def main():
     restore.add_argument('--status-only',action='store_true');restore.add_argument('--plan',help='Confirmation hash from the reviewed dry-run')
     opts=sub.add_parser('options');opts.add_argument('field');opts.add_argument('--names',required=True);opts.add_argument('--apply',action='store_true')
     args=parser.parse_args();config=settings(os.environ.get('SQUAD_SETTINGS_FILE') or os.environ.get('SQUAD_SETTINGS'))
-    api=API();store=Store(config)
+    os.environ['SQUAD_API_OPERATION']='board-'+args.command
+    api=API(config=config);store=Store(config)
     with store.lock():
         current=capture(api,config)
         if args.command=='guard':

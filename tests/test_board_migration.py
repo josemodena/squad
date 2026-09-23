@@ -41,7 +41,7 @@ p.write_text(json.dumps(api.state))
 print('HTTP/2.0 200 OK\\nx-ratelimit-remaining: 1000\\n\\n'+json.dumps({'data':data}))
 ''');gh.chmod(0o755)
                 env={k:v for k,v in os.environ.items() if not k.startswith(('SQUAD_','GIT_'))}
-                env.update(PATH=str(fake)+os.pathsep+env['PATH'],SQUAD_SETTINGS=str(config),FIXTURE_STATE=str(path),FIXTURE_RUNTIME=str(ROOT/'shared/runtime'),PYTHONDONTWRITEBYTECODE='1')
+                env.update(PATH=str(fake)+os.pathsep+env['PATH'],SQUAD_SETTINGS=str(config),SQUAD_GITHUB_STATE_DIR=str(root/'api'),SQUAD_RUNTIME_DIR=str(root/'runtime'),FIXTURE_STATE=str(path),FIXTURE_RUNTIME=str(ROOT/'shared/runtime'),PYTHONDONTWRITEBYTECODE='1')
                 cmd=['bash',str(ROOT/'plugins'/harness/'squad/scripts/init.sh'),'apply','--no-templates','--no-entry-point']
                 for _ in range(2):
                     result=subprocess.run(cmd,cwd=project,env=env,text=True,capture_output=True)

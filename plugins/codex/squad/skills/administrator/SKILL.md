@@ -159,3 +159,20 @@ Change Stage/Responsible role through typed fields when appropriate; do not infe
 Project Status from a job result, issue closure or PR state. Refresh readiness
 and dispatch the next eligible action immediately. Never claim blocked implementation
 as an investigation; create an explicit bounded investigation scope first.
+
+## GitHub API budget
+
+Use one `squad.sh next` result to dispatch the available work; do not precede every
+claim with another whole-board read. Claims revalidate their selected issue.
+`ready`, `next` and `board` share a short-lived cache and report its age; use
+`--fresh` after a known external change. Group Stage and Responsible role updates
+in `squad.sh fields ISSUE --file FILE`, with a JSON object of field names and values.
+This takes one fresh backup, validates the entire handoff and verifies its writes.
+Do not include Status unless its transition is authorised.
+
+When an API operation is deferred, read `squad.sh api-status`, record the pending
+operation and resume condition, and continue already-authorised local work where
+possible. Do not issue repeated retries, create replacement jobs or bypass the
+CLI to consume the same exhausted budget. The conductor can wake this session
+after the recorded cooldown; without it, resume manually at that time. A partial
+write requires journal reconciliation and fresh validation before continuing.

@@ -43,22 +43,23 @@ def comments(config, since):
         query = urllib.parse.urlencode({'since': stamp(since), 'sort': 'updated',
                                       'direction': 'asc', 'per_page': 100, 'page': page})
         endpoint = 'repos/'+config['repository']+'/issues/comments?'+query
-        p = subprocess.run(['gh', 'api', '--include', endpoint], capture_output=True,
-                           text=True, timeout=30)
-        body = p.stdout.replace('\r\n', '\n'); headers = {}
-        while body.startswith('HTTP/'):
-            head, sep, body = body.partition('\n\n')
-            if not sep: raise ValueError('Incomplete GitHub response')
-            headers.update({k.lower().strip(): v.strip() for line in head.splitlines()[1:]
-                            if ':' in line for k, v in [line.split(':', 1)]})
-        try: data = json.loads(body)
-        except ValueError: raise ValueError('Unreadable GitHub comments response')
-        if p.returncode:
-            message = str(data.get('message', '')).lower() if isinstance(data, dict) else ''
-            if 'rate limit' in message or 'retry-after' in headers or headers.get('x-ratelimit-remaining') == '0':
-                raise Limited(max(60, float(headers.get('retry-after', 0)),
-                                  float(headers.get('x-ratelimit-reset', 0))-time.time()+1))
-            raise ValueError('GitHub reply observation failed; cursor retained')
+        import github_io, tracker_cache
+        from squad_runtime import read
+        cache=tracker_cache.directory(config)/'comments.json'
+        saved=read(cache,{}) if page==1 else {}
+        args=[endpoint]
+        if saved.get('endpoint')==endpoint and saved.get('etag'):
+            args+=['-H','If-None-Match: '+saved['etag']]
+        try:
+            data,headers,code=github_io.request(config,args,resource='core',timeout=30)
+        except github_io.Deferred as exc:
+            raise Limited(max(0,exc.retry_at-time.time())) from exc
+        if code==304:
+            if saved.get('endpoint')!=endpoint or not isinstance(saved.get('rows'),list):
+                raise ValueError('Unusable conditional comments response')
+            return saved['rows']
+        if page==1 and 'rel="next"' not in headers.get('link','') and isinstance(data,list) and len(data)<100:
+            atomic(cache,{'endpoint':endpoint,'etag':headers.get('etag'),'rows':data})
         if not isinstance(data, list): raise ValueError('Expected a GitHub comments list')
         rows.extend(data)
         if 'rel="next"' not in headers.get('link', '') and len(data) < 100:
@@ -108,6 +109,7 @@ def poll(config, force=False):
                   comment_id=c['id'], updated_at=c['updated_at'], approval=False)
             state.setdefault('pm_reply_pending', {})[number] = {'url':c['html_url'],'event_id':'github-reply:'+identity,'author':c['user']['login'],'updated_at':c['updated_at']}
             added.append(c['html_url'])
-        observer.update(cursor=now, watches=pending, next_poll=now+interval,
+        cursor=max([since+1]+[epoch(c['updated_at']) for c in rows])
+        observer.update(cursor=cursor, watches=pending, next_poll=now+interval,
                         failures=0, retry_at=0, error=None)
         return {'status': 'checked', 'replies': added}

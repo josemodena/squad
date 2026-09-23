@@ -113,3 +113,11 @@ otherwise the launcher uses `ZELLIJ_SESSION_NAME` from its environment. See the
 
 These settings do not grant additional authority. See
 [decisions and learning](../guides/decisions-and-learning.md).
+
+## GitHub API efficiency
+
+`github_cache_seconds` defaults to 60 (0–300). `github_state_dir` defaults to
+`~/.local/state/squad/github`; `github_budget_key` defaults to `default`.
+Projects sharing a credential must share the latter two settings. These values
+contain no secrets. See [API usage and recovery](../guides/github-api.md) for
+fresh-claim guarantees, measured usage and multi-project behaviour.

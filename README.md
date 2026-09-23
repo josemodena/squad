@@ -116,6 +116,9 @@ necessary for a particular harness/account combination.
 | Parallel native subagents | Yes; within harness limits | Yes; within harness limits |
 | Completion delivered to the coordinating agent | Native notifications | Native background-agent notifications |
 | Dispatch ready work without waiting for an unrelated batch | Administrator workflow | Administrator workflow |
+| Shared board reads and fresh per-task claims | Yes | Yes |
+| Grouped, backed-up field handoffs | Yes | Yes |
+| Shared local API cooldowns and usage counters | Yes | Yes |
 | GitHub Issues and Projects tracking | Shared CLI | Shared CLI |
 | Task prerequisites using native blocked-by relationships | Shared CLI | Shared CLI |
 | Responsible role, stage, agreement and design status | Shared Project fields | Shared Project fields |
@@ -146,6 +149,12 @@ necessary for a particular harness/account combination.
 These controls apply when using Squad's commands. They do not prevent a user or
 agent from bypassing them with direct GitHub or shell operations. Protect the
 repository's default branch separately if server-side enforcement is required.
+
+Routine board reads are shared locally, and each claim checks its selected task
+again before work starts. Grouped handoffs reduce backup reads; shared API
+cooldowns prevent local workers from repeatedly retrying an exhausted budget.
+These features work with free GitHub accounts. See
+[GitHub API usage](docs/guides/github-api.md) for commands and limits.
 
 ## Requirements
 
