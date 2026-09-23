@@ -12,10 +12,13 @@ def pairs():
         plugin = ROOT / 'plugins' / harness / 'squad'
         for name in ('runtime.md',):
             yield ROOT / 'docs/reference' / name, plugin / 'docs' / name
+        yield ROOT / 'docs/guides/decisions-and-learning.md', plugin / 'docs/guides/decisions-and-learning.md'
+        for source in (ROOT / 'docs/roles').glob('*.md'):
+            yield source, plugin / 'docs/roles' / source.name
         for name in ('LICENSE', 'NOTICE', 'THIRD_PARTY.md'):
             if (ROOT / name).exists():
                 yield ROOT / name, plugin / name
-    for name in ('squad_runtime.py', 'test_runtime.py', 'board_backup.py', 'test_board_backup.py', 'meeting.py', 'blockers.py', 'model_updates.py'):
+    for name in ('squad_runtime.py', 'test_runtime.py', 'board_backup.py', 'test_board_backup.py', 'meeting.py', 'blockers.py', 'model_updates.py', 'inbox.py', 'knowledge.py'):
         yield ROOT / 'shared/runtime' / name, ROOT / 'plugins/codex/squad/scripts' / name
         yield ROOT / 'shared/runtime' / name, ROOT / 'plugins/claude-code/squad/scripts' / name
 

@@ -66,8 +66,8 @@ class BlockerWrites(unittest.TestCase):
         api=API();snapshot={'project':{'id':'P'},'host':'github.com','fields':[{'options':[{'id':'original-option'}]}]}
         with tempfile.TemporaryDirectory() as tmp:
             config={'scratch_root':tmp,'project_owner':'fixture','project_number':'1','repository':'fixture/demo'}
-            record={'id':'need-input','category':'missing-customer-input','owner':'Project owner','next_action':'Supply source','why':'Truthful proof','recommendation':'Locate original','evidence':'report','requires_user':True}
-            with patch('board_backup.API',return_value=api),patch('board_backup.capture',return_value=snapshot):result=b.edit(config,1,record=record)
+            record={'id':'need-input','category':'missing-customer-input','owner':'Project owner','next_action':'Supply source','why':'Truthful proof','recommendation':'Locate original','evidence':'report','requires_user':True,'authority_boundary':'User input required','consequence':'Acceptance waits'}
+            with patch('board_backup.API',return_value=api),patch('board_backup.capture',return_value=snapshot),patch('knowledge.pm_source',return_value={'role':'project-manager','job':'pm'}):result=b.edit(config,1,record=record,pm_job='pm')
             mutations=[(q,v) for q,v in api.calls if q.startswith('mutation')]
             self.assertEqual(len(mutations),1);value=mutations[0][1]['input']
             self.assertTrue(value['body'].startswith('Original scope.'));self.assertEqual(set(value['labelIds']),{'L','B','U','D'})

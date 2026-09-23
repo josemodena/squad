@@ -51,3 +51,18 @@ harness-specific launchers avoid collisions when both plugins are installed.
 
 For a model-only update, follow [model updates](model-updates.md); no board
 migration or new Project fields are needed.
+
+## PM authority and reply recovery in 0.5.0
+
+Update both plugins and start fresh role sessions after checkpointing active work.
+No Project option or Status migration is required. Existing blockers remain readable;
+new user requests need PM provenance and a concrete authority boundary. Set
+`decision_makers` to the intended GitHub logins and optionally supply `authority_file`.
+Run `squad ready` to refresh existing blocked items, then `squad inbox poll --force`.
+For a request absent from cached readiness, use `inbox watch` with its original
+request date so replies already posted are included. Route imported replies through
+`pm-claim`; do not ask the user to repeat an existing approval.
+
+Unchanged PM assessments do not repeat automatically. The Administrator must
+record concrete next work or an owned wait, and act on new replies or changed
+readiness. Keep previous role models, user pauses and unrelated configuration.

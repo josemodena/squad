@@ -180,3 +180,24 @@ repository at `docs/guides/blockers.md`.
 Bundled blocker commands are `bash ${PLUGIN_ROOT}/scripts/blocker.sh set ISSUE
 --file JSON`, `resolve ISSUE --id ID --file RESOLUTION`, and `visibility`; Claude
 uses `${CLAUDE_PLUGIN_ROOT}`. They preserve Status and back up before writes.
+
+## PM resolution, replies and startup context
+
+Use `pm-claim JOB --issue N --worktree DIR --brief FILE` for stopped-work diagnosis.
+It does not authorise blocked implementation. Pauses, capacity and duplicate ownership
+still apply. `next` reports `resolve-with-pm`; only PM-authored user requests are
+published through `blocker set --pm-job JOB` or `--pm-session UUID` provenance.
+New requests also require `authority_boundary` and `consequence` fields. Legacy
+blockers remain readable and are routed for PM assessment rather than discarded.
+
+`inbox poll` imports GitHub replies without treating them as approvals. The
+conductor calls it on a bounded cadence. `inbox status` reports health; `inbox watch
+--issue N --since ISO_TIMESTAMP` registers old requests. A PM resolution handoff
+must record `reply_disposition` for a consumed reply. Later replies remain pending.
+
+`context ROLE [--issue N]` loads the role contract, delegation and reviewed records.
+Claims persist the packet at the returned `context` path. `memory add --file JSON`
+proposes a lesson or decision; `memory review --id ID --file JSON --pm-job JOB`
+reviews it (a captured `--pm-session UUID` is also accepted). `memory list` shows
+committed project records. See the documentation's decisions-and-learning guide
+for schemas, privacy, retention, authority boundaries and observer limitations.

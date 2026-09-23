@@ -60,6 +60,37 @@ For planning and retrospectives, Squad can open a separate Zellij tab with the
 Project Manager and its configured model. You talk directly while the Administrator
 coordinates agreed work. See [direct meetings](docs/guides/meetings.md).
 
+## Who makes decisions?
+
+You agree the outcome with the Project Manager. The Administrator keeps delivery
+moving between roles. If progress stops, it assigns the problem to the PM, who
+resolves it within the agreed scope and authority. Only the PM brings decisions
+to you, with a clear explanation and recommendation.
+
+When you answer a request on its GitHub issue, the optional recovery service
+can detect your reply while agents are stopped. The PM checks what you authorised
+before work resumes. A reply does not override a separate project pause.
+
+Every role has a [job description](docs/roles/README.md). New agents receive the
+role instructions, delegation policy and relevant reviewed project decisions and
+lessons. Read [decisions, stalled work and learning](docs/guides/decisions-and-learning.md)
+for the complete process and setup.
+
+## Working with specifications
+
+Squad complements Spec-Driven Development: an agreed specification supplies the
+reference for planning, implementation and independent acceptance. Squad organises
+the delivery and handoffs around it. See the
+[Spec-Driven Development guide](docs/guides/spec-driven-development.md).
+
+## Recovery and backups
+
+Squad checkpoints unfinished agent work and keeps local, Git-versioned backups of
+GitHub Project metadata. Those backups preserve fields, option identities, item
+values and supported view configuration, isolated by project. Before migrating or
+repairing a board, read [board backup and recovery](docs/guides/board-backup.md).
+Keep durable runtime and learning records in your own private backup as well.
+
 ## Features and support
 
 **Shared** means both plugins ship the feature. **Role workflow** means agents
@@ -71,6 +102,10 @@ necessary for a particular harness/account combination.
 | Feature | Codex | Claude Code |
 | --- | --- | --- |
 | Native plugin install and namespaced skills | Yes | Yes |
+| Shared role descriptions, delegation and startup context | Yes | Yes |
+| PM-owned resolution and user escalation | Shared workflow and request provenance checks | Shared workflow and request provenance checks |
+| GitHub reply observation while agents are stopped | Optional conductor; bounded observer cadence | Optional conductor; ten-minute timer |
+| Private, versioned decisions and PM-reviewed lessons | Shared CLI | Shared CLI |
 | Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
 | Read-only model upgrade discovery | Catalogue suggestions via `models --check-upgrades` | No automatic discovery; native alias verification |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
@@ -239,9 +274,3 @@ Squad’s original code and documentation are open source under the
 [Apache License 2.0](LICENSE). See [licensing](docs/development/licensing.md)
 for contribution terms and third-party components.
 Squad is an independent community project, not an official OpenAI or Anthropic product.
-
-Use an agreed specification to drive delivery with the
-[Spec-Driven Development guide](docs/guides/spec-driven-development.md).
-
-Before migrating or repairing a board, read the
-[board backup and recovery guide](docs/guides/board-backup.md).

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-09-23
+
+- Make the PM responsible for delivery resolution and all user escalations, with
+  explicit delegation and provenance for new user requests.
+- Add bounded PM diagnosis claims without unlocking blocked implementation.
+- Observe GitHub replies with durable deduplication, paginated reads and deferred
+  rate-limit backoff; require PM assessment before resolving authority.
+- Package six role job descriptions and persist startup context for every claim.
+- Add private Git-versioned decisions and lessons, with PM review, expiry and retirement.
+- Avoid deprecated Project Classic queries when updating review verdict labels.
+- Reorganise the README and add a complete decisions-and-learning guide.
+
 ## 0.4.6 — 2026-09-22
 
 - Upgrade Codex defaults and new-project templates to GPT-6-Luna and GPT-6-Sol.

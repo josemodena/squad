@@ -79,7 +79,7 @@ def prompt_for(record, scripts):
 This is a main session, not an Administrator or a delegated worker. Do not launch another meeting.
 Read AGENTS.md/CLAUDE.md if present, {record['settings_file']},
 {plugin}/skills/project-manager/SKILL.md and {plugin}/skills/{skill}/SKILL.md.
-Use scripts from {scripts}. Read current project records and previous decisions; do not invent board state if unavailable.
+Use scripts from {scripts}. Run bash {scripts}/squad.sh context project-manager for role and reviewed memory. Read current project records and previous decisions; do not invent board state if unavailable.
 Meeting record: {record['record_path']}. Read its checkpoint/report references before asking the user to repeat anything.
 Configured model: {record['model']}; effort: {record['effort']}. Do not silently switch models.
 Have the conversation directly with the user. Proposals are not agreed scope.

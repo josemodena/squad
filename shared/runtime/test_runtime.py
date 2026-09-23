@@ -73,7 +73,7 @@ class RuntimeTest(unittest.TestCase):
     def test_blocked_column_keeps_owned_waits_and_metadata_repairs_visible(self):
         self.item['fields']['Status']='Blocked';self.blocker()
         actions=self.cli('next')['actions']
-        self.assertTrue(any(a['action']=='request-user' for a in actions))
+        self.assertTrue(any(a['action'] in ('resolve-with-pm','pm-assessment-required') for a in actions))
         self.assertFalse(self.cli('ready')[0]['claimable'])
         del self.item['fields']['Estimate (credits %)']
         self.assertTrue(any(a['action']=='repair-metadata' for a in self.cli('next')['actions']))
@@ -82,14 +82,14 @@ class RuntimeTest(unittest.TestCase):
         self.blocker();del self.item['fields']['Estimate (credits %)']
         actions=self.cli('next')['actions']
         self.assertTrue(any(a['action']=='repair-metadata' for a in actions))
-        self.assertTrue(any(a['action']=='request-user' for a in actions))
+        self.assertTrue(any(a['action'] in ('resolve-with-pm','pm-assessment-required') for a in actions))
     def test_unagreed_scope_cannot_be_claimed_as_pm_repair(self):
         self.config['project_manager_model']='astra'
         del self.item['fields']['Agreement']
         del self.item['fields']['Estimate (credits %)']
         actions=self.cli('next')
-        self.assertFalse(actions['can_continue'])
-        self.assertTrue(any(a['action']=='request-user' and a['reason']=='not-agreed' for a in actions['actions']))
+        self.assertTrue(actions['can_continue'])
+        self.assertTrue(any(a['action']=='resolve-with-pm' for a in actions['actions']))
         with self.assertRaises(ValueError):self.cli('repair-claim','bad','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
         self.assertEqual(self.cli('state')['jobs'],{})
     def test_ack_cannot_lose_followup(self):
@@ -149,6 +149,92 @@ class RuntimeTest(unittest.TestCase):
         now=time.time()
         self.assertEqual(r.apply_policy(self.config,{},100,20,now+1000,now-4000,now)['verdict'],'stale')
         self.assertEqual(r.apply_policy(self.config,{},100,20,now-1,now,now)['verdict'],'stale')
+    def test_pm_diagnosis_never_unlocks_blocked_implementation(self):
+        self.config['project_manager_model']='astra'
+        self.blocker()
+        job=self.cli('pm-claim','pm1','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.assertEqual(job['role'],'project-manager');self.assertEqual(job['kind'],'resolution')
+        self.assertTrue(Path(job['context']).is_file())
+        with self.assertRaises(ValueError):self.claim()
+        with self.assertRaises(ValueError):self.cli('pm-claim','pm2','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('complete','pm1','--result','completed','--report',str(self.report))
+        self.cli('ack','pm1')
+        self.assertFalse(self.cli('ready')[0]['eligible'])
+        self.assertFalse(self.cli('ready')[0]['pm_resolution']['claimable'])
+    def test_pm_diagnosis_respects_pause_and_capacity(self):
+        self.config['project_manager_model']='astra';self.blocker()
+        self.cli('pause','--reason','user paused')
+        with self.assertRaises(ValueError):self.cli('pm-claim','pm','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('resume','--reason','user resumed');self.quota['verdict']='suspend'
+        with self.assertRaises(ValueError):self.cli('pm-claim','pm','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+    def test_pm_reply_requires_disposition_and_preserves_later_reply(self):
+        self.config['project_manager_model']='astra';self.blocker()
+        with r.transaction(self.config) as state:state['pm_reply_pending']={'1':'first-reply'}
+        self.cli('pm-claim','pm','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('complete','pm','--result','completed','--report',str(self.report))
+        with self.assertRaises(ValueError):self.cli('ack','pm')
+        with r.transaction(self.config) as state:
+            state['jobs']['pm']['handoff']['reply_disposition']={'url':'first-reply','outcome':'accepted','evidence':'verified author and scope'}
+            state['pm_reply_pending']['1']='later-reply'
+        # Bypass the test helper's generic handoff so the specific disposition survives.
+        with patch.object(sys,'argv',['runtime','ack','pm']),patch.object(r,'settings',return_value=self.config),contextlib.redirect_stdout(io.StringIO()):r.main()
+        self.assertEqual(r.read(r.root(self.config)/'state.json')['pm_reply_pending']['1'],'later-reply')
+
+    def test_review_label_uses_rest_without_project_classic(self):
+        calls=[]
+        def gh(*args):
+            calls.append(args)
+            if args[0]=='pr' and args[-1]=='headRefOid,labels':return {'headRefOid':'exact','labels':[{'name':'review:passed'}]}
+            if args[0]=='pr':return {'comments':[]}
+            return []
+        with patch.object(sys,'argv',['runtime','review-record','1','--head','exact','--verdict','fixes-required','--file',str(self.report)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'gh',side_effect=gh),patch.object(r,'run',return_value=''),contextlib.redirect_stdout(io.StringIO()):r.main()
+        self.assertIn(('api','repos/x/y/issues/1/labels/review%3Apassed','-X','DELETE'),calls)
+    def test_pm_cannot_consume_an_edited_reply_at_same_url(self):
+        self.config['project_manager_model']='astra';self.blocker()
+        with r.transaction(self.config) as state:state['pm_reply_pending']={'1':{'url':'reply','event_id':'revision-1'}}
+        self.cli('pm-claim','pm','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('complete','pm','--result','completed','--report',str(self.report))
+        with self.assertRaises(ValueError):self.cli('ack','pm')
+        with r.transaction(self.config) as state:
+            state['jobs']['pm']['handoff']['reply_disposition']={'url':'reply','outcome':'accepted','evidence':'original version'}
+            state['pm_reply_pending']['1']={'url':'reply','event_id':'revision-2'}
+        with patch.object(sys,'argv',['runtime','ack','pm']),patch.object(r,'settings',return_value=self.config),contextlib.redirect_stdout(io.StringIO()):r.main()
+        self.assertEqual(r.read(r.root(self.config)/'state.json')['pm_reply_pending']['1']['event_id'],'revision-2')
+
+    def test_stopped_session_reply_to_pm_to_eligible_delivery(self):
+        import inbox
+        import blockers
+        self.config['project_manager_model']='astra';self.config['harness_name']='Codex'
+        self.blocker()
+        self.cli('ready')
+        # Seed a settled legacy session, before reply observation existed.
+        with r.transaction(self.config) as state:state['settled']=state['revision']
+        reply={'id':9,'created_at':inbox.stamp(time.time()+1),'updated_at':inbox.stamp(time.time()+1),
+               'issue_url':'https://api.github.com/repos/x/y/issues/1','html_url':'https://github.com/x/y/issues/1#issuecomment-9',
+               'user':{'login':'owner'},'body':'I approve the recommendation.'}
+        with patch.object(inbox,'comments',return_value=[reply]):inbox.poll(self.config,True)
+        self.assertTrue(self.cli('wake')['ready'])
+        self.assertFalse(self.cli('ready')[0]['eligible'])
+        self.assertEqual(self.cli('next')['actions'][0]['action'],'resolve-with-pm')
+        self.cli('pm-claim','pm','--issue','1','--worktree',str(self.worktree),'--brief',str(self.brief))
+        self.cli('bind','pm','--worker','pm-worker','--model','astra')
+        # The PM, not the observer, verifies source evidence and resolves the fixture blocker.
+        rows=blockers.parse(self.item['body'])
+        rows[0].update(status='resolved',resolution_evidence={'user_authority':reply['html_url'],'evidence':'verified exact request and author'})
+        self.item['body']=blockers.render('',rows)
+        self.cli('complete','pm','--result','completed','--report',str(self.report))
+        with self.assertRaises(ValueError):self.cli('ack','pm')
+        with r.transaction(self.config) as state:state['jobs']['pm']['handoff']['reply_disposition']={'url':reply['html_url'],'outcome':'accepted','evidence':'verified decision source'}
+        with patch.object(sys,'argv',['runtime','ack','pm']),patch.object(r,'settings',return_value=self.config),contextlib.redirect_stdout(io.StringIO()):r.main()
+        self.assertTrue(self.cli('ready')[0]['eligible'])
+        self.assertEqual(self.claim('delivery')['model'],'sol')
+
+    def test_unassigned_pm_resolution_cannot_be_silently_settled(self):
+        self.blocker();self.cli('ready')
+        revision=r.read(r.root(self.config)/'state.json')['revision']
+        with self.assertRaisesRegex(ValueError,'Unassigned PM'):self.cli('settle','--through',str(revision))
+        self.assertTrue(self.cli('wake')['ready'])
+
     def test_model_mismatch_and_binding_identity(self):
         self.claim()
         with self.assertRaises(ValueError): self.cli('bind','j1','--worker','w1','--model','luna')

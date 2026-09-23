@@ -11,6 +11,8 @@ install a recovery service for your first project.
 
 ## Guides
 
+- [Decisions, stalled work and learning](guides/decisions-and-learning.md)
+- [Role job descriptions and delegation](roles/README.md)
 - [Direct planning and retrospective meetings](guides/meetings.md)
 - [Owned blockers and continuation](guides/blockers.md)
 - [Model versions and safe upgrades](guides/model-updates.md)

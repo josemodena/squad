@@ -11,16 +11,17 @@ metadata repair is work, not a reason to end the session.
 
 After recovery, every result, rejected launch, repair or user decision:
 
-1. Run `squad next`. Dispatch eligible work and claim PM metadata repairs.
+1. Run `squad next`. Dispatch eligible work, PM metadata repairs and PM resolution assignments.
 2. Read the exact result/evidence. Route review findings to the author and corrected
    work to a fresh independent reviewer. Reconcile existing jobs before replacements.
-3. Publish external blockers with an owner and plain-English request. Process other
+3. Refer unresolved progress barriers to the PM. Publish only PM-authored user
+   requests with their authority boundary and recommendation. Process other
    independent work while waiting. Do not repeatedly launch the blocked assignment.
 4. Update Stage and Responsible role for the next handoff using `squad field`.
    Preserve explicit Status unless an authorised separate transition is required.
 5. Record a handoff, acknowledge the finished job, refresh readiness and continue.
 
-`next` returns `can_continue` for dispatch and PM repairs, plus named actions/waits.
+`next` returns `can_continue` for dispatch, PM repairs and PM resolution, plus named actions/waits.
 This is a deterministic action list, not a new scheduler or a guarantee that an
 external party responds. An item can wait legitimately; it must never be forgotten
 or left with an unowned “blocked” report. The Administrator instructions prohibit
@@ -28,7 +29,8 @@ ending while eligible work or an internal metadata repair can proceed.
 
 ## Visible requests for the user
 
-Use a structured JSON record, for example:
+The PM first checks existing decisions and prepares a concrete recommendation.
+Use a PM-authored structured JSON record, for example:
 
 ```json
 {
@@ -39,12 +41,14 @@ Use a structured JSON record, for example:
   "next_action": "Approve or decline one real acceptance run after the corrected test passes review.",
   "why": "The previous authorised attempt was consumed and did not prove acceptance.",
   "recommendation": "Correct and review the known test problem before spending another attempt.",
-  "evidence": "Link to the exact review and consumed-run record"
+  "evidence": "Link to the exact review and consumed-run record",
+  "authority_boundary": "The user explicitly limited the previous execution to one attempt.",
+  "consequence": "Acceptance remains unproved until another attempt is authorised."
 }
 ```
 
 ```bash
-squad blocker set 42 --file blocker.json
+squad blocker set 42 --file blocker.json --pm-job pm-42
 squad blocker visibility
 ```
 
@@ -111,7 +115,8 @@ This consumes an ordinary worker slot, selects the configured PM model, respects
 pause/capacity and prevents duplicate ownership. Its scope is repairing metadata
 from existing authority, not doing product implementation or approving new scope.
 A missing Agreement blocks repair claims as well. Recover an actual existing decision
-without launching delivery, or ask the user; never classify unagreed scope as clerical work.
+through a bounded `squad pm-claim` diagnosis; the PM asks the user only if
+necessary. Never classify unagreed implementation scope as clerical work.
 The default provisional repair allowance is 0.5 weekly percentage points for the
 headroom check (`metadata_repair_estimate` can override it); unrestricted policy
 waives voluntary pacing, never provider exhaustion. After repair, record the result,
@@ -154,3 +159,6 @@ changes take a complete fresh private versioned snapshot first. Issue changes ke
 before/after journals and check for concurrent body/label changes; this is not an
 atomic GitHub transaction. Stop and reconcile a partial or ambiguous write.
 Project option IDs and historical Status values are never rebuilt or inferred.
+
+See [decisions and learning](decisions-and-learning.md) for PM authority, reply
+observation, job startup and durable project memory.

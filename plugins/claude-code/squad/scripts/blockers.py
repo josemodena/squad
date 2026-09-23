@@ -2,6 +2,7 @@
 """Structured issue blockers: human-readable ownership and fail-closed readiness."""
 import json
 import re
+import time
 
 START='<!-- squad:blockers:v1 -->'
 END='<!-- /squad:blockers -->'
@@ -50,7 +51,9 @@ def render(body,records):
                  '**Owner:** '+r['owner'], '**What to do:** '+r['next_action'],
                  '**Why:** '+r['why'], '**PM recommendation:** '+r['recommendation'],
                  '**Needed by:** '+r.get('needed_by','Before this item can continue; no calendar commitment recorded.'),
-                 '**Evidence:** '+r['evidence'],'']
+                 '**Evidence:** '+r['evidence'],
+                 *(['**Authority boundary:** '+r['authority_boundary']] if r.get('authority_boundary') else []),
+                 *(['**If we wait:** '+r['consequence']] if r.get('consequence') else []),'']
     text += ['<details><summary>Squad blocker metadata</summary>','', '```json',
              json.dumps(records,ensure_ascii=False,indent=2),'```','</details>',END]
     section='\n'.join(text)
@@ -82,7 +85,7 @@ def describe(reason,item,config):
     mapping={
       'missing-estimate':('missing-estimate','project-manager','Estimate the remaining agreed work, record it, then refresh readiness.',False),
       'role-stage-mismatch':('metadata-repair-required','project-manager','Reconcile Stage and Responsible role from the agreed handoff; preserve explicit Status.',False),
-      'not-agreed':('decision-required',user,'Confirm existing scope authority or ask the user to agree the proposed scope.',True),
+      'not-agreed':('metadata-repair-required','project-manager','Recover existing scope authority; if agreement is genuinely absent, prepare a PM-owned user request.',False),
       'dependencies-open':('dependency-open','administrator','Complete or route the open prerequisites; then refresh readiness.',False),
       'design-not-approved':('review-required','architect','Provide sufficient design and obtain independent architecture review.',False),
       'already-owned':('review-required','administrator','Process the existing job and its report; reconcile and acknowledge it before a fresh claim.',False),
@@ -106,9 +109,15 @@ def verify_claim_inputs(path):
     return data
 
 
-def edit(config,issue,record=None,resolution=None,blocker_id=None):
+def edit(config,issue,record=None,resolution=None,blocker_id=None,pm_job=None,pm_session=None):
     """Back up first; preserve issue text/labels and journal every GraphQL write."""
     import board_backup as b
+    if record is not None and record.get('requires_user'):
+        from knowledge import pm_source
+        source=pm_source(config,pm_job,pm_session)
+        for key in ('authority_boundary','consequence'):
+            if not record.get(key): raise ValueError('PM user request requires '+key)
+        record={**record,'pm_review':source,'created_at':time.time()}
     api=b.API();store=b.Store(config)
     with store.lock():
         snapshot=b.capture(api,config)
@@ -164,6 +173,12 @@ def edit(config,issue,record=None,resolution=None,blocker_id=None):
         except Exception:
             store.save({**journal,'status':'interrupted','previous':path},'blocker-journal');raise
         store.save({**journal,'status':'completed','previous':path},'blocker-journal')
+        from squad_runtime import transaction
+        with transaction(config) as state:
+            watches=state.setdefault('reply_watches',{})
+            user_rows=[r for r in opened if r['requires_user']]
+            if user_rows: watches[str(issue)]={'since':min(r.get('created_at',time.time()) for r in user_rows)}
+            else: watches.pop(str(issue),None)
         return {'issue':issue,'blockers':rows,'snapshot':before,'project_status_changed':False}
 
 
@@ -191,13 +206,13 @@ def main():
     from pathlib import Path
     from squad_runtime import settings
     p=argparse.ArgumentParser(description=__doc__);sub=p.add_subparsers(dest='action',required=True)
-    s=sub.add_parser('set');s.add_argument('issue',type=int);s.add_argument('--file',required=True)
+    s=sub.add_parser('set');s.add_argument('issue',type=int);s.add_argument('--file',required=True);s.add_argument('--pm-job');s.add_argument('--pm-session')
     s=sub.add_parser('resolve');s.add_argument('issue',type=int);s.add_argument('--id',required=True);s.add_argument('--file',required=True)
     sub.add_parser('visibility')
     a=p.parse_args();config=settings(os.environ.get('SQUAD_SETTINGS_FILE'))
     if a.action=='visibility':print(json.dumps(visibility(config)));return
     value=json.loads(Path(a.file).read_text())
-    result=edit(config,a.issue,record=value) if a.action=='set' else edit(config,a.issue,resolution=value,blocker_id=a.id)
+    result=edit(config,a.issue,record=value,pm_job=a.pm_job,pm_session=a.pm_session) if a.action=='set' else edit(config,a.issue,resolution=value,blocker_id=a.id)
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
 

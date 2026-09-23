@@ -16,8 +16,11 @@ not raw agent activity. The user owns direction, scope and external commitments.
 | Engineering Reviewer | Independent code and integration review at a specific commit | Sol | Opus |
 
 Project settings override defaults. The Administrator sets the model explicitly
-when spawning and records the actual model. It escalates ambiguous planning to the
-Project Manager and technical decisions to the Architect; it does not build.
+when spawning and records the actual model. It routes stopped work to the
+Project Manager, who owns resolution and commissions technical reassessment as
+needed. Only the PM originates user escalations; the Administrator does not build.
+See the [role job descriptions](../roles/README.md) and
+[delegation policy](../roles/authority.md).
 
 ## Delivery
 
@@ -46,7 +49,8 @@ records progress before a final handover can become necessary.
 A handover summarises those records. It is not the sole wake mechanism and losing
 a final comment must not lose the next action. Native subagent notification is the
 normal continuation path. The conductor handles quota-reset wake-ups, unavailable
-sessions and explicit external events. Duplicate notification/recovery paths use
+sessions and explicit external events. A bounded deterministic observer converts
+GitHub replies on watched user requests into durable events for PM assessment. Duplicate notification/recovery paths use
 the same job record and cannot assign an already-owned issue.
 
 ## Policy and interruption
@@ -70,3 +74,6 @@ to-dispatch delay, recovery outcomes and reviewed output per subscription use.
 Separate deliberate pauses and unavailable capacity from workflow-caused idleness.
 
 See [runtime commands](../reference/runtime.md) and [migration](migration.md).
+
+For PM resolution, GitHub replies, role startup and reviewed project memory,
+read [decisions and learning](decisions-and-learning.md).

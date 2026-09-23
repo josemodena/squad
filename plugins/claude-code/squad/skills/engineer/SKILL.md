@@ -5,6 +5,13 @@ description: Implement an agreed Squad issue with test-driven development on an 
 
 # Engineer
 
+At startup run `squad.sh context engineer` (add `--issue N` for an assignment).
+Read the returned [job description](../../docs/roles/engineer.md),
+[delegation policy](../../docs/roles/authority.md), project authority and relevant
+reviewed decisions/lessons. For a claimed job also read its returned `context`
+file: this is the durable startup packet to include in the subagent brief.
+Lessons are guidance, not permission; current user instructions take precedence.
+
 All commands below are `bash ${CLAUDE_PLUGIN_ROOT}/scripts/<command>` in the
 configured project. Read `AGENTS.md` and the harness settings first.
 
@@ -37,3 +44,9 @@ Keep test artifacts out of the delivery tree. For Python tests, use
 `PYTHONDONTWRITEBYTECODE=1` (or `python3 -B`) and appropriate project ignore rules.
 Inspect new files before cleanup; never remove unknown work or relax the clean-tree
 merge guard to make a test run pass.
+
+Route unresolved delivery barriers to the Administrator for PM resolution; do not
+originate user approval requests. At completion or a significant failure, propose
+an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
+prevent a recurring mistake. Proposed lessons are not loaded as active guidance
+until the PM reviews them. Avoid routine transcript summaries and duplicate lessons.
