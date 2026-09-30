@@ -86,14 +86,14 @@ def describe(reason,item,config):
       'missing-estimate':('missing-estimate','project-manager','Estimate the remaining agreed work, record it, then refresh readiness.',False),
       'role-stage-mismatch':('metadata-repair-required','project-manager','Reconcile Stage and Responsible role from the agreed handoff; preserve explicit Status.',False),
       'not-agreed':('metadata-repair-required','project-manager','Recover existing scope authority; if agreement is genuinely absent, prepare a PM-owned user request.',False),
-      'dependencies-open':('dependency-open','administrator','Complete or route the open prerequisites; then refresh readiness.',False),
+      'dependencies-open':('dependency-open','project-manager','Complete or route the open prerequisites; then refresh readiness.',False),
       'design-not-approved':('review-required','architect','Provide sufficient design and obtain independent architecture review.',False),
-      'already-owned':('review-required','administrator','Process the existing job and its report; reconcile and acknowledge it before a fresh claim.',False),
+      'already-owned':('review-required','project-manager','Process the existing job and its report; reconcile and acknowledge it before a fresh claim.',False),
       'user-paused':('decision-required',user,'Wait for the user to resume the project; do not treat quota policy as permission.',True),
       'outside-active-work':('metadata-repair-required','project-manager','Leave explicit Status unchanged; review scheduling with the user if this should be active.',False),
-      'closed':('metadata-repair-required','administrator','Reconcile the closed issue with its explicit Project Status; do not reopen or move it by inference.',False),
+      'closed':('metadata-repair-required','project-manager','Reconcile the closed issue with its explicit Project Status; do not reopen or move it by inference.',False),
     }
-    category,owner,action,needs=mapping.get(reason,('provider-limited','administrator','Resolve capacity/freshness through the configured quota policy; do not manufacture an override.',False))
+    category,owner,action,needs=mapping.get(reason,('provider-limited','project-manager','Resolve capacity/freshness through the configured quota policy; do not manufacture an override.',False))
     return {'reason':reason,'category':category,'owner':owner,'next_action':action,'requires_user':needs,'claimable':False}
 
 

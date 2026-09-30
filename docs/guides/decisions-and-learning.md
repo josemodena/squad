@@ -1,27 +1,27 @@
 # Decisions, stalled work and learning
 
 Squad should keep agreed work moving without making the user manage every handoff.
-The Administrator coordinates execution. When it cannot find a valid next step,
-it assigns resolution to the Project Manager (PM). The PM resolves what falls
+The Project Manager (PM) owns planning and execution. When work stops, it uses
+the CLI to record a bounded resolution assignment in its own session and resolves what falls
 within its delegated authority and brings only reserved decisions to the user.
 
 ## Follow a stopped task
 
-1. The Administrator reads `squad next`. A failed review, missing authority or
+1. The Project Manager reads `squad next`. A failed review, missing authority or
    unclear handoff becomes a PM resolution assignment, not an unexplained wait.
 2. It writes a diagnosis brief and uses `squad pm-claim` to claim the PM work.
+   It binds this assignment to its actual PM session and records the result itself.
    This claim permits investigation and planning, not the blocked implementation.
 3. The PM checks the evidence, existing agreement and previous decisions. It may
    repair metadata, revise a forecast, commission architecture reassessment or
    prepare another bounded correction within its authority.
-4. If a user decision is genuinely required, the PM writes the request. The
-   Administrator may publish or relay it unchanged. The issue shows an orange
+4. If a user decision is genuinely required, the PM writes the request. It publishes the request directly. The issue shows an orange
    attention label, what is needed, why, the PM recommendation, the authority
    boundary and the consequence of waiting. Project Status is preserved.
 5. The user replies on that GitHub issue or speaks directly with the PM. A GitHub
    reply becomes a durable event; the PM checks its author and meaning before
    recording a decision and resolving the blocker.
-6. The Administrator refreshes readiness and dispatches the next eligible role.
+6. The Project Manager refreshes readiness and dispatches the next eligible role.
    A reply never overrides a separate user pause or the provider's capacity limit.
 
 The [delegation policy](../roles/authority.md) lists what the PM may resolve and
@@ -46,7 +46,7 @@ The optional recovery conductor invokes a deterministic reply observer. It check
 watched issues using one repository-wide paginated comments feed, normally every
 five minutes. Codex's timer may tick more often without making another API call.
 Claude's ten-minute timer bounds its actual observation cadence. There is no model
-call for observation. The active Administrator also polls at recovery boundaries.
+call for observation. The active Project Manager also polls at recovery boundaries.
 
 Publishing a user request registers its issue automatically. Existing user blockers
 in cached readiness are also discovered, which supports upgrades from 0.4.6. For
@@ -89,7 +89,7 @@ when the earlier one is acknowledged. A response requesting clarification must
 include the PM's precise next question, rather than simply clearing the event.
 
 Without a running conductor, no background observer runs: use `squad inbox poll`
-when starting the Administrator. `github_reply_observer: false` disables automated
+when starting the Project Manager. `github_reply_observer: false` disables automated
 observation; `github_reply_interval` sets seconds (minimum 60). Inspect observer
 health with `inbox status`; errors are not evidence that no replies exist. This
 observer covers issue comments, not email, chat messages, reactions or arbitrary
@@ -110,7 +110,7 @@ squad context engineer --issue 42
 
 This returns the role description, delegation policy, optional `authority_file`,
 and relevant reviewed decisions/lessons. Each job claim saves a `context.json`
-packet and returns its path. The Administrator includes that path and the task
+packet and returns its path. The Project Manager includes that path and the task
 brief in the new agent's instructions. A fresh agent also reads current project
 instructions and current context; the saved packet explains what it received at
 claim time. Direct PM meetings load the same context without a worker claim.

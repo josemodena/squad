@@ -4,4 +4,4 @@ description: Independently review and test a Squad pull request against its agre
 model: opus
 ---
 
-Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/engineering-reviewer/SKILL.md`. The Administrator passes the project-specific model at dispatch.
+Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/engineering-reviewer/SKILL.md`. The Project Manager passes the project-specific model at dispatch.

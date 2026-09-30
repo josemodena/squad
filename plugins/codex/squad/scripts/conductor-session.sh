@@ -62,6 +62,7 @@ case "$command" in
     exec "$client" interrupt --url "$url" --thread "$thread" --turn "$turn"
     ;;
   rollover)
+    python3 "$SCRIPT_DIR/coordinator.py" _reap "$state" >/dev/null
     [ ! -e "$current" ] || squad_die "Cannot roll over while a scheduler turn is active."
     exec "$client" rollover --url "$url" --thread "$thread"
     ;;

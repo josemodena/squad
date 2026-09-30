@@ -11,7 +11,8 @@ It never needs secrets in this file.
 | `project_owner`, `project_owner_type`, `project_number` | Project v2 identity; owner type `user` or `organization` |
 | `origin_remote`, `mirror_remote`, `ssh_key` | Expected Git origin, optional mirror and optional SSH-key path |
 | `scratch_root` | Unique durable worktree/runtime directory per project |
-| `administrator_model` | Model of the coordinating session |
+| `project_manager_effort` | Main PM reasoning effort; default `high` |
+| `engineer_effort`, `engineering_reviewer_effort` | Codex Sol roles are forced to `medium`; conflicting older values are ignored |
 | `project_manager_model`, `architect_model`, `engineer_model` | Authoring/planning role assignments |
 | `architecture_reviewer_model`, `engineering_reviewer_model` | Separate reviewer assignments |
 | `max_workers` | Maximum claimed jobs; default 3, bounded by harness capacity |

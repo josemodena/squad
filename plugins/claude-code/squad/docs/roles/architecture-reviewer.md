@@ -18,7 +18,7 @@ The verdict is independent, tied to a revision, and actionable. Missing evidence
 
 ## Inputs and handoff
 
-Read the agreed requirements, design, prior relevant decisions and role context. Return a revision-specific verdict, findings and evidence to the Administrator.
+Read the agreed requirements, design, prior relevant decisions and role context. Return a revision-specific verdict, findings and evidence to the Project Manager.
 
 At startup, read this description and [delegation of authority](authority.md),
 then the matching role skill and project/task instructions. `squad context architecture-reviewer`

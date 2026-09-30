@@ -13,7 +13,7 @@ from taking the same task. Squad makes those responsibilities explicit and backs
 them with a GitHub Project board and deterministic commands.
 
 For example, when one Engineer finishes while another is still working, the
-Administrator can dispatch the finished task to an independent Reviewer
+Project Manager can dispatch the finished task to an independent Reviewer
 immediately. If capacity runs out, saved job records and checkpoints tell the next
 session what to inspect before continuing. The board remains the shared account
 of what was agreed and what is left.
@@ -43,12 +43,12 @@ make more sense for ongoing projects.
 ## How it works
 
 1. **You and the Project Manager** agree the outcome, priorities and dependencies.
-2. **The Administrator** claims eligible work and starts native role subagents.
+2. **The Project Manager** claims eligible work and starts native role subagents.
 3. **Architects and Engineers** produce designs and tested changes; separate
    **Reviewers** assess them. Existing approved designs can go straight to coding.
-4. **The Administrator** processes each result, updates tracking and merges only
+4. **The Project Manager** processes each result, updates tracking and merges only
    the reviewed commit through the guarded merge command.
-5. **The optional conductor** wakes an unavailable Administrator when recovery is
+5. **The optional conductor** wakes an unavailable Project Manager when recovery is
    needed and capacity is available. Normal subagent completion uses native
    notifications. A user pause always takes precedence.
 
@@ -56,15 +56,15 @@ GitHub stores the plan and delivery status. Local durable records store executio
 ownership, worker identities, checkpoints and unhandled results. See the
 [workflow guide](docs/guides/workflow.md) for responsibilities and failure cases.
 
-For planning and retrospectives, Squad can open a separate Zellij tab with the
-Project Manager and its configured model. You talk directly while the Administrator
-coordinates agreed work. See [direct meetings](docs/guides/meetings.md).
+Run `squad start` to open or return to the main PM session in Zellij, with the
+correct model and effort. Planning, retrospectives and delivery happen in that
+same conversation. Scripts handle routine checks and tracking. See
+[talking to the PM](docs/guides/meetings.md).
 
 ## Who makes decisions?
 
-You agree the outcome with the Project Manager. The Administrator keeps delivery
-moving between roles. If progress stops, it assigns the problem to the PM, who
-resolves it within the agreed scope and authority. Only the PM brings decisions
+You agree the outcome with the Project Manager. The Project Manager keeps delivery
+moving between roles. If progress stops, the PM resolves it within the agreed scope and authority. Only the PM brings decisions
 to you, with a clear explanation and recommendation.
 
 When you answer a request on its GitHub issue, the optional recovery service
@@ -106,16 +106,16 @@ necessary for a particular harness/account combination.
 | PM-owned resolution and user escalation | Shared workflow and request provenance checks | Shared workflow and request provenance checks |
 | GitHub reply observation while agents are stopped | Optional conductor; bounded observer cadence | Optional conductor; ten-minute timer |
 | Private, versioned decisions and PM-reviewed lessons | Shared CLI | Shared CLI |
-| Six roles with configurable model assignments | Yes | Yes; also ships agent definitions |
+| Five roles with configurable model assignments | Yes | Yes; also ships agent definitions |
 | Read-only model upgrade discovery | Catalogue suggestions via `models --check-upgrades` | No automatic discovery; native alias verification |
 | Planning, sprint review, forecasts and retrospectives | Shared role workflow | Shared role workflow |
 | Owned blockers and continuation | Visible user requests, PM repairs, guarded claims | Visible user requests, PM repairs, guarded claims |
-| Direct Project Manager conversations | New Zellij tab; explicit model/effort | New Zellij tab; explicit model/effort |
+| Direct Project Manager conversations | Main Zellij session; explicit model/effort | Main Zellij session; explicit model/effort |
 | Conditional architecture and separate design review | Shared role workflow | Shared role workflow |
 | Test-driven engineering and separate code review | Shared role workflow | Shared role workflow |
 | Parallel native subagents | Yes; within harness limits | Yes; within harness limits |
 | Completion delivered to the coordinating agent | Native notifications | Native background-agent notifications |
-| Dispatch ready work without waiting for an unrelated batch | Administrator workflow | Administrator workflow |
+| Dispatch ready work without waiting for an unrelated batch | Project Manager workflow | Project Manager workflow |
 | Shared board reads and fresh per-task claims | Yes | Yes |
 | Grouped, backed-up field handoffs | Yes | Yes |
 | Shared local API cooldowns and usage counters | Yes | Yes |
@@ -135,7 +135,7 @@ necessary for a particular harness/account combination.
 | Handle short and weekly provider windows | Reads provider windows | Depends on fields supplied by collector |
 | Resume after capacity reset | Optional systemd/App Server recovery | Optional systemd/Zellij recovery; fresh collector data required |
 | External recovery check interval | 30 seconds | 10 minutes |
-| Managed Administrator session inspect/attach/rollover | App Server gateway | No equivalent gateway; terminal adapter |
+| Managed Project Manager session inspect/attach/rollover | App Server gateway | No equivalent gateway; terminal adapter |
 | Reconcile ended native workers automatically | Exact Codex thread/turn records | Native inspection required before replacement |
 | Recovery services for multiple projects | Per-project systemd instances | One legacy conductor per OS user |
 | Idle-time and dispatch-delay measurements | Shared recorded observations | Shared recorded observations |
@@ -169,9 +169,9 @@ These features work with free GitHub accounts. See
 - Access to the models you configure. The default aliases below may not be
   available to every account; select supported models during setup.
 - Durable local storage for worktrees and runtime state, unique to each project.
-- **Direct planning/retro tabs:** Zellij with initial-command support for `action new-tab` (tested on 0.44.3).
-- **Optional recovery:** systemd user services; Go 1.23+ for Codex, or Zellij for
-  Claude Code. Claude capacity-aware dispatch also needs a usage collector,
+- **Main PM tab:** Zellij with initial-command support for `action new-tab` (tested on 0.44.3).
+- **Codex managed PM:** systemd user services and Go 1.23+. The recovery timer
+  is optional. Claude uses its native CLI in Zellij. Claude capacity-aware dispatch also needs a usage collector,
   which Squad does not bundle.
 
 See [requirements and permissions](docs/getting-started/requirements.md), including
@@ -204,13 +204,12 @@ Prefer the native marketplace commands without a checkout? See
    **`/squad:init` in Claude Code**. Agree the board, model assignments, storage,
    quota policy and repository setup. Setup writes a local configuration and
    provisions tracking; it does not invent a product plan.
-3. Invoke **`$squad:project-manager`** or **`/squad:project-manager`**. Start with one
+3. Prepare the [PM launcher](docs/guides/meetings.md#setup), then run **`squad start`**. Start with one
    small issue and explicit acceptance criteria. Agree the plan and review needs.
 4. Verify capacity with `squad quota`, then inspect `squad ready`. Missing usage,
    unapproved work and unmet prerequisites are reported as blockers.
-5. Start **`$squad:administrator`** or **`/squad:administrator`** to execute the
-   agreed work. The main session must use your configured Administrator model;
-   selecting a skill alone does not switch the model.
+5. Ask the PM to execute the agreed work in the same session. It delegates to
+   the configured technical roles and handles results directly.
 6. Inspect progress with `squad board` and `squad status`. Run one complete
    implement/review cycle before considering unattended recovery.
 
@@ -220,6 +219,7 @@ expected results, pause/resume and the optional recovery setup.
 ## Everyday commands
 
 ```bash
+squad start
 squad board
 squad ready
 squad status
@@ -237,14 +237,17 @@ when working elsewhere. See the [CLI reference](docs/reference/cli.md).
 
 | Role | Codex | Claude Code |
 | --- | --- | --- |
-| Administrator | GPT-6-Luna (`gpt-6-luna`) | Sonnet 5 (`sonnet`) |
 | Project Manager | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
 | Architect | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
 | Engineer | GPT-6.1 Sol (`gpt-6.1-sol`) | Opus 5.5 (`opus`) |
 | Architecture Reviewer | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
 | Engineering Reviewer | GPT-6.1 Sol (`gpt-6.1-sol`) | Opus 5.5 (`opus`) |
 
-These are configurable assignments, not a claim of universal model availability
+**Sol Engineer and Engineering Reviewer always use medium effort.** The PM
+defaults to high. `squad models --details` shows model and effort together.
+The Administrator role was removed in 0.6.0; see the [upgrade guide](docs/guides/pm-migration.md).
+
+These are configurable model assignments, not a claim of universal model availability
 or a price ranking. Claude aliases can vary by provider or override; the versions
 above describe the Anthropic defaults verified on 2026-09-22. Opus 5.5 requires
 Claude Code 2.1.280 or later.

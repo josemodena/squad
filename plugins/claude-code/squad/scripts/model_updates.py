@@ -41,7 +41,7 @@ def check_upgrades(config, assignments, state):
                   if j.get('status') in ('claimed', 'running', 'interrupted')],
               'next_action': 'Reconcile workers and checkpoint work before changing settings. '
                              'Keep each existing job on its recorded model. '
-                             'Roll over a managed Administrator only when idle.'}
+                             'Roll over a managed Project Manager only when idle.'}
     if harness != 'codex':
         report.update(status='unsupported', source=None,
                       reason='Automatic upgrade discovery is available only for Codex. '

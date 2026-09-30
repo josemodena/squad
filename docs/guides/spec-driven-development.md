@@ -17,10 +17,10 @@ synchronise external specification formats automatically.
 | Design review | Architecture Reviewer | Is that design sufficient and testable? |
 | Code and tests | Engineer | Does the implementation satisfy the agreed criteria? |
 | Implementation review | Engineering Reviewer | Does this exact revision meet the criteria without regressions? |
-| Jobs, checkpoints and continuation | Administrator | Who is working, what finished, and what happens next? |
+| Jobs, checkpoints and continuation | Project Manager | Who is working, what finished, and what happens next? |
 
 The user decides scope. A specification file alone is not permission to execute.
-The Administrator dispatches agreed, eligible work and does not resolve product
+The Project Manager dispatches agreed, eligible work and does not resolve product
 ambiguity by inventing requirements. The conductor remains an external recovery
 mechanism; it does not manage the specification.
 
@@ -86,7 +86,7 @@ them; SDD does not require a new architecture document for every small fix.
 
 ## 4. Implement with traceable tests
 
-The Administrator dispatches eligible work through the normal Squad workflow.
+The Project Manager dispatches eligible work through the normal Squad workflow.
 The Engineer references requirement IDs in tests or the test report, demonstrates
 a meaningful failing test, implements the behaviour, then refactors with tests
 passing. Use appropriate acceptance checks for documentation or other deliverables
@@ -107,7 +107,7 @@ Include non-functional criteria and explicitly identify untested assumptions.
 
 The Engineering Reviewer reads the agreed specification revision, approved design,
 issue criteria and current main. It checks the PR's exact head, tests behaviour
-and records gaps. The Administrator uses Squad's guarded merge after a passing
+and records gaps. The Project Manager uses Squad's guarded merge after a passing
 independent review; changing the code after review requires a fresh review.
 
 Link the merged PR and review evidence back to the issue. The Project Manager
@@ -125,7 +125,7 @@ does not require another product approval.
 
 Include the specification SHA, design revision, requirement IDs, test evidence,
 remaining work and next step in durable job reports/checkpoints. After exhaustion
-or a crash, the Administrator reconciles live workers and recovers those records.
+or a crash, the Project Manager reconciles live workers and recovers those records.
 It must not restart from a newer, unagreed specification just because that file
 now exists. See [continuation and recovery](workflow.md).
 

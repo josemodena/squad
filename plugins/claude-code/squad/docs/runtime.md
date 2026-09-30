@@ -38,7 +38,7 @@ pause always blocks dispatch. Unknown metadata fails visibly rather than guessin
 ```bash
 squad claim job-42-engineer-1 --issue 42 --role engineer \
   --worktree /path/to/worktree --brief /path/to/brief.md --readiness /path/to/assessment.json
-squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-6.1-sol \
+squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-6.1-sol --effort medium \
   --thread THREAD_ID --turn TURN_ID --rollout /path/to/rollout.jsonl
 squad checkpoint job-42-engineer-1 --file /path/to/checkpoint-input.json
 squad complete job-42-engineer-1 --result completed --report /path/to/report.md
@@ -87,7 +87,7 @@ reviewed head and worktree. On conflicts, preserve and inspect the worktree.
 
 `review-record PR --head SHA --verdict pass|fixes-required|do-not-merge --file FILE`
 rejects a changed head and records the evidence plus review label. Normal review
-completion uses native notification, not a conductor event. The Administrator
+completion uses native notification, not a conductor event. The Project Manager
 merges with `squad git finish PR ISSUE`; it checks the marker, label, local-main
 safety and passes the exact head to GitHub's merge guard. Engineer submission is
 `squad git submit "TITLE" ISSUE` in both plugins and never merges.
@@ -120,11 +120,11 @@ Codex `wake` reconciles only exactly matched native thread/turn records. A worke
 ending without completion becomes interrupted for inspection; it is not assumed
 to have produced correct work. The external conductor submits recovery only when
 capacity allows, and its gateway remains the sole authority for starting the
-Administrator turn. Native completion is the normal path. Capacity waits retain the minimum required headroom and wake only on a real
+Project Manager turn. Native completion is the normal path. Capacity waits retain the minimum required headroom and wake only on a real
 transition to sufficient capacity. Durable command completion produces a fresh
 event even after the supervising agent ends. Empty durable state does
 not create dummy turns. Seed the first recovery with an external event or start
-the Administrator interactively.
+the Project Manager interactively.
 
 ## Measurement
 
@@ -153,18 +153,19 @@ view changes are blockers, not permission to recreate or guess them.
 
 See the [backup and recovery guide](https://github.com/josemodena/squad/blob/main/docs/guides/board-backup.md).
 
-## Direct Project Manager meetings
+## Main Project Manager session
 
-Use `bash ${PLUGIN_ROOT}/scripts/meeting.sh start planning` (or `start retro`)
-in Codex; use `${CLAUDE_PLUGIN_ROOT}` in Claude Code. These create interactive
-main sessions in a new Zellij tab, with explicit configured model and effort.
-Do not use a subagent or relay the user's conversation. `checkpoint KIND --file
-NOTES [--session-id UUID]` saves durable context; `complete KIND --file OUTCOME`
-adds an external runtime event without changing pause state. Read these events
-through `recover` at coordination boundaries. Exact transcript resume needs a
-recorded native UUID; otherwise recovery uses checkpoint notes. `status KIND`
-shows the record and `reconcile KIND --reason TEXT` resolves a confirmed ended
-launch when its tab is absent. Meeting launches do not claim worker jobs.
+Run `squad start` or `bash ${PLUGIN_ROOT}/scripts/start.sh` in Codex (use
+`${CLAUDE_PLUGIN_ROOT}` in Claude). It opens or focuses the main PM in Zellij
+with explicit model and effort. Planning and retrospectives stay in that same
+conversation. The old `meeting.sh start planning|retro` commands redirect here.
+
+Codex uses the managed App Server thread; inspect it with `session inspect` and
+verify role identity with `pm-check --session UUID`. Claude keeps its captured
+UUID and notes under `meeting status pm`; use `meeting checkpoint pm --file NOTES`
+for durable discussion notes. An ambiguous launch refuses a duplicate. Only
+reconcile an ended Claude session after confirming its process and tab are gone.
+Opening a PM session never changes the execution pause or grants scope approval.
 
 ## Owned blockers and continuation
 
@@ -218,3 +219,19 @@ the journal before resuming. `field ISSUE NAME VALUE` uses the same implementati
 A recorded API reset is a durable wake condition; user pause and provider capacity
 still apply. Typed issue/PR reads use REST. Issue-only blocker writes save an
 issue backup and journal, while Project writes retain full fresh board backups.
+
+## Main PM and effort
+
+Run `squad start` to open/focus the main PM session. Planning, retrospective and
+delivery conversations stay there. Deterministic scripts enforce readiness,
+duplicate claims, policy, board backups and safe mutations. The PM makes judgment
+calls and handles native specialist completion directly. It performs bounded
+`repair-claim` and `pm-claim` work in its own session, binds that actual session,
+and records completion/handoff/ack; no second PM is required.
+
+`models --details` returns each role's model and effort. New Codex Sol Engineer
+and Engineering Reviewer jobs record `effort: medium` even if old settings or
+environment variables request something else. Launch with that effort and pass
+`bind JOB --worker ID --model MODEL --effort medium`. Bind refuses a missing or
+conflicting effort. Historical jobs retain their original settings. The main PM
+uses `project_manager_effort` (default high), verified on managed Codex launch.

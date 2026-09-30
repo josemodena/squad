@@ -119,7 +119,7 @@ Coordinated requests are serial. A secondary limit records a delay of at least
 limit honours GitHub's reset time. The command returns with a durable cooldown
 instead of sleeping and repeatedly retrying; other coordinated local processes
 share that wait. Mutations are never automatically replayed. With a conductor,
-the Administrator can resume after reset, inspect the journal and revalidate the
+the Project Manager can resume after reset, inspect the journal and revalidate the
 remaining work. A user pause still prevents automatic resumption.
 
 A rate-budget preflight cannot reserve capacity or predict secondary limits.

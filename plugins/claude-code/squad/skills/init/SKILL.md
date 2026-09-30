@@ -35,9 +35,9 @@ questions, in order:
 3. **The Decider**: the person who decides scope, money and dates, and who
    agrees every plan. Ask for the name and for the label that marks work only
    they can do (default `action-for-decider`).
-4. **The Administrator** coordinates native workers; the Project Manager owns
+4. **The Project Manager** owns the main conversation, native delegation and
    planning with the user. Neither writes implementation.
-5. **The six role models**: Administrator, Project Manager, Architect, Engineer,
+5. **The five role models**: Project Manager, Architect, Engineer,
    Architecture Reviewer and Engineering Reviewer.
 6. **The tracks**: the few streams of work this project has. They become the
    board's Track options and the `track:*` labels.
@@ -110,7 +110,7 @@ Name the things Squad cannot do for them: agreeing the first sprint goal,
 writing the rest of `AGENTS.md`, and adding the settings file to
 `.gitignore` if anything in it should stay off the remote.
 
-Configure all six role models and max_workers. Default to native continuation. Run init apply to add Responsible role, Stage, Agreement, Design, Priority, Forecast finish and Estimate (hours). Existing cards need explicit agreement/design classification before eligibility; do not infer approval during migration. Preserve any user pause and legacy hold files. See the runtime command reference shipped with this plugin.
+Configure all five role models and max_workers. Default to native continuation. Run init apply to add Responsible role, Stage, Agreement, Design, Priority, Forecast finish and Estimate (hours). Existing cards need explicit agreement/design classification before eligibility; do not infer approval during migration. Preserve any user pause and legacy hold files. See the runtime command reference shipped with this plugin.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
 

@@ -5,19 +5,15 @@ description: This skill should be used when the user asks to "run the retrospect
 
 # The retrospective
 
-## Direct meeting entry
+## Main PM conversation
 
-When invoked in an Administrator session, run
-`bash ${PLUGIN_ROOT}/scripts/meeting.sh start retro`
-and let the user converse in the new Zellij tab. Do not relay the discussion or
-perform it using the Administrator model. The launcher selects the configured
-Project Manager model and effort. If Zellij is unavailable, report its precise
-setup error; do not substitute a subagent conversation.
-
-When already in the direct Project Manager meeting (`SQUAD_MEETING_ID` is set),
-continue here without launching another session. Checkpoint the conversation
-using `meeting.sh checkpoint`, and call `meeting.sh complete` with the durable
-outcome only when the user concludes it. Unagreed proposals remain proposals.
+If this is the verified main Project Manager session, continue here. Planning and
+retrospectives are conversations in that same session, without a relay. Otherwise
+run `bash ${PLUGIN_ROOT}/scripts/start.sh retro`
+and direct the user to the returned PM tab. A skill cannot change the current
+model. Check the environment before declaring the launcher unavailable.
+Checkpoint the conversation and record agreed outcomes; proposals are not approval.
+Do not mark the main session completed just because a planning discussion ends.
 
 Act as the Project Manager using the configured model. Read `squad.sh metrics`: report avoidable idle time, completion-to-dispatch delays, recovery outcomes and reviewed output per allowance. Separate deliberate pauses and unavailable capacity from eligible idle work.
 
@@ -89,4 +85,4 @@ retrospective.
 - A better idea that contradicts an earlier decision goes to the Decider with a
   recommendation, never refused for the contradiction.
 
-Maintain native dependencies, Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Administrator owns execution and continuation.
+Maintain native dependencies, Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Project Manager owns execution and continuation.

@@ -39,6 +39,17 @@ class RuntimeTest(unittest.TestCase):
         with patch.object(sys,'argv',['runtime',*args]),patch.object(r,'settings',return_value=self.config),patch.object(r,'board',return_value=[self.item]),patch.object(r,'quota_read',return_value=self.quota), contextlib.redirect_stdout(io.StringIO()) as out:
             r.main()
             return json.loads(out.getvalue())
+    def test_sol_effort_persisted_and_wrong_or_missing_bind_refused(self):
+        self.config.update(engineer_model='gpt-6.1-sol',engineer_effort='medium')
+        job=self.claim()
+        self.assertEqual(job['effort'],'medium')
+        for effort in ([],['--effort','low'],['--effort','high']):
+            with self.assertRaisesRegex(ValueError,'actual effort'):
+                self.cli('bind','j1','--worker','native-worker','--model','gpt-6.1-sol',*effort)
+        self.assertEqual(self.cli('state')['jobs']['j1']['status'],'claimed')
+        bound=self.cli('bind','j1','--worker','native-worker','--model','gpt-6.1-sol','--effort','medium')
+        self.assertEqual(bound['actual_effort'],'medium')
+
     def blocker(self,category='decision-required',needs=True):
         import blockers
         record={'id':'acceptance-authority-required','category':category,'owner':'Project owner' if needs else 'engineer','next_action':'Provide a specifically bounded decision','why':'Acceptance remains unproved','recommendation':'Review the bounded request','evidence':'fixture report','requires_user':needs}

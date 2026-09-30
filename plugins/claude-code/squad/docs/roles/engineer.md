@@ -10,7 +10,7 @@ Own test-driven implementation, isolated source changes, checkpoints, targeted v
 
 ## Delegated authority and boundaries
 
-Make implementation decisions within the approved design and permitted toolchain. Do not expand scope, infer missing authority, approve your own work, merge it, or ask the user to resolve a delivery blocker. Report blockers to the Administrator for PM resolution.
+Make implementation decisions within the approved design and permitted toolchain. Do not expand scope, infer missing authority, approve your own work, merge it, or ask the user to resolve a delivery blocker. Report blockers to the Project Manager for PM resolution.
 
 ## Success criteria
 

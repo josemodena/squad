@@ -12,7 +12,7 @@ import time
 from squad_runtime import ROLES, atomic, read, root
 
 
-def pm_source(config, job=None, session=None):
+def pm_source(config, job=None, session=None, main_only=False):
     if bool(job) == bool(session): raise ValueError('Supply exactly one --pm-job or --pm-session')
     if job:
         value = read(root(config)/'state.json', {}).get('jobs', {}).get(job, {})
@@ -21,9 +21,24 @@ def pm_source(config, job=None, session=None):
         return {'job': job, 'model': value.get('actual_model'), 'role': 'project-manager'}
     for path in (root(config)/'meetings').glob('*/*.json'):
         value = read(path, {})
-        if value.get('session_id') == session and value.get('status') in ('running','completed') and Path(value.get('project','')).resolve()==Path(config.get('project_dir',os.getcwd())).resolve():
+        if (value.get('session_id') == session and value.get('status') in ('running','completed')
+            and Path(value.get('project','')).resolve()==Path(config.get('project_dir',os.getcwd())).resolve()
+            and (not main_only or (value.get('kind')=='pm' and value.get('model')==config.get('project_manager_model')
+                                  and value.get('effort')==config.get('project_manager_effort','high')))):
             return {'session': session, 'model': value.get('model'), 'role': 'project-manager'}
-    raise ValueError('PM session must be a captured direct meeting session')
+    # Managed Codex sessions record server-resolved identity, not a role claim
+    # supplied by an arbitrary chat. Historical storage filename stays compatible.
+    project=Path(config.get('project_dir',os.getcwd())).resolve()
+    slug=re.sub(r'[^a-z0-9]+','-',config.get('repository','').lower()).strip('-')
+    state=Path(config.get('conductor_state',str(root(config).parent/('conductor-'+slug)/'state')))
+    value=read(state/'chief-of-staff-thread.json',{})
+    resolved=value.get('resolved',{})
+    from coordinator import verified_pm
+    if (value.get('thread_id')==session and value.get('attachable')
+        and verified_pm(state,value,config.get('project_manager_model'),config.get('project_manager_effort','high'),project)
+        and Path(resolved.get('cwd','')).resolve()==project):
+        return {'session':session,'model':resolved['model'],'role':'project-manager'}
+    raise ValueError('PM session must be a captured main Project Manager session')
 
 
 def directory(config):
@@ -105,7 +120,7 @@ def context(config, role, issue=None):
     base = Path(__file__).resolve().parent
     docs = base.parent/'docs' if base.name=='scripts' else base.parents[1]/'docs'
     records = committed(config)
-    selected = [v for v in records.values() if v['status']=='active' and role in v['roles']
+    selected = [v for v in records.values() if v['status']=='active' and (role in v['roles'] or (role=='project-manager' and 'administrator' in v['roles']))
                 and (not v.get('issues') or issue in v['issues'])
                 and (not v.get('expires_at') or v['expires_at']>time.time())]
     total=len(selected)

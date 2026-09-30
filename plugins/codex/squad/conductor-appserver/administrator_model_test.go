@@ -11,9 +11,9 @@ import (
 	"testing"
 )
 
-func TestAdministratorModelIsExplicitAndMismatchCannotStartTurn(t *testing.T) {
-	for _, mismatch := range []bool{false, true} {
-		t.Run(map[bool]string{false: "configured-model", true: "wrong-effective-model"}[mismatch], func(t *testing.T) {
+func TestPMModelAndEffortAreExplicitAndMismatchCannotStartTurn(t *testing.T) {
+	for _, mismatch := range []string{"", "model", "effort"} {
+		t.Run("mismatch-"+mismatch, func(t *testing.T) {
 			var starts atomic.Int32
 			var requested atomic.Bool
 			u := websocket.Upgrader{}
@@ -35,12 +35,17 @@ func TestAdministratorModelIsExplicitAndMismatchCannotStartTurn(t *testing.T) {
 					case "thread/start":
 						var p map[string]any
 						_ = json.Unmarshal(m.Params, &p)
-						requested.Store(p["model"] == "gpt-5.6-luna")
-						model := "gpt-5.6-luna"
-						if mismatch {
-							model = "gpt-6-astra"
+						config, _ := p["config"].(map[string]any)
+						requested.Store(p["model"] == "gpt-6-astra" && config["model_reasoning_effort"] == "high")
+						model := "gpt-6-astra"
+						if mismatch == "model" {
+							model = "gpt-6-luna"
 						}
-						result = map[string]any{"thread": map[string]any{"id": "admin"}, "model": model}
+						effort := "high"
+						if mismatch == "effort" {
+							effort = "low"
+						}
+						result = map[string]any{"thread": map[string]any{"id": "admin"}, "model": model, "reasoningEffort": effort}
 					case "turn/start":
 						starts.Add(1)
 						result = map[string]any{"turn": map[string]any{"id": "turn"}}
@@ -56,11 +61,11 @@ func TestAdministratorModelIsExplicitAndMismatchCannotStartTurn(t *testing.T) {
 			if err := atomicJSON(filepath.Join(dir, "current.json"), currentState{ID: "launch", Phase: "claimed"}); err != nil {
 				t.Fatal(err)
 			}
-			err := runTurnWithModel("ws"+strings.TrimPrefix(server.URL, "http"), dir, "launch", "coordinate", dir, "gpt-5.6-luna")
+			err := runTurnConfigured("ws"+strings.TrimPrefix(server.URL, "http"), dir, "launch", "coordinate", dir, "gpt-6-astra", "high")
 			if !requested.Load() {
 				t.Fatal("model was not explicit on thread/start")
 			}
-			if mismatch {
+			if mismatch != "" {
 				if err == nil || starts.Load() != 0 {
 					t.Fatalf("mismatch launched: %v, starts=%d", err, starts.Load())
 				}

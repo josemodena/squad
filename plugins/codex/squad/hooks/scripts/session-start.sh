@@ -2,6 +2,8 @@
 # Optional terminal tab presentation; App Server thread/turn state owns lifecycle.
 set -uo pipefail
 
+[ -z "${SQUAD_PM_MAIN:-}" ] || exit 0
+
 PLUGIN_ROOT="${PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SCRIPTS="$PLUGIN_ROOT/scripts"
 

@@ -14,9 +14,9 @@ another platform does not establish support for the complete workflow.
 | Codex or Claude Code, authenticated | Model work, plugins, native subagents |
 | GitHub repository and Project v2 | Shared planning and tracking |
 | Writable durable local storage | Worktrees, job records, logs, checkpoints |
-| systemd user manager | Optional unattended recovery |
-| Go 1.23+ | Build Codex's optional App Server controller |
-| Zellij | Claude Code's optional terminal recovery |
+| systemd user manager | Codex managed PM; optional unattended recovery |
+| Go 1.23+ | Build Codex's managed PM controller |
+| Zellij | Main PM tab for both harnesses; Claude terminal recovery |
 | Claude usage collector | Fresh quota data for Claude capacity-aware dispatch |
 
 GitHub CLI 2.46.0 is the supported minimum, including paginated REST operations.
@@ -27,14 +27,14 @@ for CLI and manifest checks; they are not established minimum versions. Harness
 interfaces can change. Verify a complete delivery cycle after a harness upgrade.
 
 The current Claude defaults need Claude Code **2.1.280 or later** for Opus 5.5.
-Sonnet 5 needs 2.1.197 and Fable 5.1 needs 2.1.257. Run `claude --version` and
+Fable 5.1 needs 2.1.257. Run `claude --version` and
 `claude update` if needed. Provider mappings and overrides can differ; see
 [model versions and safe upgrades](../guides/model-updates.md).
 
 macOS and native Windows are not supported. WSL2 may provide the required Linux
 environment, but is untested; recovery also needs a functioning user systemd
-manager. Containers without systemd can run interactive coordination, but not the
-supplied recovery services. Network filesystems and distributed runtime locks are
+manager. Containers without systemd cannot run the managed Codex PM launcher. Claude
+interactive coordination still works with Zellij, but without systemd recovery. Network filesystems and distributed runtime locks are
 not tested; keep runtime storage local to one coordination host.
 
 On Debian/Ubuntu, install the base utilities using your package manager:
@@ -64,7 +64,7 @@ working authentication. Record the actual origin URL in project settings.
 
 Use the harness's own sign-in process. Squad does not provide a model subscription,
 API key, token broker or additional quota. Model access and native delegation
-capabilities depend on the account. Confirm the six configured model names during
+capabilities depend on the account. Confirm the five configured model names during
 setup rather than assuming that the defaults are universally available.
 
 ## Storage and permissions

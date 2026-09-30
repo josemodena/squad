@@ -16,6 +16,7 @@ its location does not identify the harness.
 
 | Command | Purpose |
 | --- | --- |
+| `squad start [planning\|retro\|delivery] [--dry-run]` | Open/focus the correctly configured main PM in Zellij |
 | `squad --help`, `squad --version` | Help/version without settings or authentication |
 | `squad --harness codex doctor` | Read-only prerequisite checks; no agent calls |
 | `squad doctor --offline` | Skip the GitHub authentication check |
@@ -30,9 +31,10 @@ its location does not identify the harness.
 | `squad api-status` | Local request counters, budgets and cooldowns |
 | `squad pm-claim JOB --issue N --worktree DIR --brief FILE` | Bounded PM diagnosis of stopped work |
 | `squad inbox poll` / `inbox status` | Observe replies / inspect cadence and errors |
+| `squad pm-check --session UUID` | Verify captured main PM identity before assuming the role |
 | `squad context ROLE --issue N` | Role, authority and reviewed project records |
 | `squad memory add` / `review` / `list` | Propose, review and inspect durable learning/decisions |
-| `squad models` | Role/model assignments |
+| `squad models` / `models --details` | Role/model assignments, optionally with required effort |
 | `squad models --check-upgrades` | Read-only Codex upgrade suggestions and unfinished-job models |
 | `squad quota --json` | Capacity reading; exit 0 run, 1 suspend, 2 stale, 3 missing |
 | `squad pause --reason TEXT` | Block new work; does not kill running workers |

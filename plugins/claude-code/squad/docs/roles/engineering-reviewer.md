@@ -10,7 +10,7 @@ Own exact-head review, relevant test execution and honest assessment of evidence
 
 ## Delegated authority and boundaries
 
-Record pass, fixes-required or do-not-merge. Do not edit the implementation, merge it, waive acceptance criteria or seek user approval directly. Send unresolved barriers to the Administrator for PM resolution.
+Record pass, fixes-required or do-not-merge. Do not edit the implementation, merge it, waive acceptance criteria or seek user approval directly. Send unresolved barriers to the Project Manager for PM resolution.
 
 ## Success criteria
 

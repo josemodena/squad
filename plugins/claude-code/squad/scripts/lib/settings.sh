@@ -100,7 +100,7 @@ Done}"
   : "${SQUAD_ESTIMATE_FIELD:=Estimate (credits %)}"
   : "${SQUAD_CONTINUATION_MODE:=native}"
   : "${SQUAD_QUOTA_MODE:=pacing}"
-  : "${SQUAD_ADMINISTRATOR_MODEL:=sonnet}"
+  : "${SQUAD_PROJECT_MANAGER_EFFORT:=high}"
   : "${SQUAD_PROJECT_MANAGER_MODEL:=fable}"
   : "${SQUAD_ARCHITECT_MODEL:=fable}"
   : "${SQUAD_ENGINEER_MODEL:=opus}"
@@ -117,9 +117,9 @@ Done}"
   : "${SQUAD_HARNESS_VERSION_FILE:=}"
   : "${SQUAD_HARNESS_WATCHLIST:=}"
 
-  # The conductor. The terminal multiplexer session the Administrator lives
+  # The conductor. The terminal multiplexer session the Project Manager lives
   # in, the tab it gets, and the command that is a harness session. The tab is
-  # named after the Administrator, so a project that calls the role something
+  # named after the Project Manager, so a project that calls the role something
   # else gets a tab of that name without saying so twice.
   : "${SQUAD_CONDUCTOR_SESSION:=claude}"
   : "${SQUAD_CONDUCTOR_TAB:=$(squad_slug "${SQUAD_CHIEF_OF_STAFF:-lead}")}"

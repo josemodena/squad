@@ -4,4 +4,4 @@ description: Implement an agreed Squad issue with test-driven development on an 
 model: opus
 ---
 
-Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/engineer/SKILL.md`. The Administrator passes the project-specific model at dispatch.
+Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/engineer/SKILL.md`. The Project Manager passes the project-specific model at dispatch.

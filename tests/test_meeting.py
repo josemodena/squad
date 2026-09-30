@@ -30,6 +30,22 @@ class Meetings(unittest.TestCase):
         return m.read(m.namespace(self.config,harness)/(kind+'.json'))
     def notes(self):
         p=self.base/'notes.md';p.write_text('Agreed scope; unresolved question.');return str(p)
+    def test_main_pm_prompt_owns_delivery_and_does_not_complete_at_end_of_planning(self):
+        m.launch({**self.config,'project_manager_model':'fable'},'claude-code','pm')
+        prompt=self.record('claude-code','pm')['prompt']
+        self.assertIn('main Project Manager',prompt)
+        self.assertIn('native specialist subagents',prompt)
+        self.assertIn('checkpoint pm',prompt)
+        self.assertNotIn('Do not claim a worker',prompt)
+        self.assertNotIn('complete pm',prompt)
+    def test_main_pm_rejects_changed_model_and_open_legacy_meeting(self):
+        m.launch(self.config,'codex','planning')
+        with self.assertRaisesRegex(ValueError,'older direct PM meeting'):
+            m.launch(self.config,'codex','pm')
+        self.tabs.clear()
+        m.launch(self.config,'codex','pm')
+        with self.assertRaisesRegex(ValueError,'different model or effort'):
+            m.launch({**self.config,'project_manager_effort':'low'},'codex','pm')
     def test_launch_and_duplicate_focus(self):
         first=m.launch(self.config,'codex','planning')
         second=m.launch(self.config,'codex','planning')

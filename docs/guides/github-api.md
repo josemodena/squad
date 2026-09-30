@@ -74,7 +74,7 @@ local processes, honours the reset or Retry-After value, and increases the delay
 for repeated limit responses. It returns promptly rather than tying up an agent
 with sleeping retries. Ambiguous mutations are never automatically replayed.
 
-The conductor checks the durable wait and can wake the Administrator after it
+The conductor checks the durable wait and can wake the Project Manager after it
 expires. It respects user pauses and model-capacity limits. Without a conductor,
 resume manually after the displayed time. Already-running agents may continue
 local work; actions requiring fresh GitHub data must wait.

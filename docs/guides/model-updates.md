@@ -1,16 +1,12 @@
 # Updating role models
 
-Squad 0.5.2 defaults to GPT-6-Luna for administration, GPT-6.1 Sol for engineering
-and engineering review, and GPT-6-Astra for planning and architecture. Explicit
-project settings and environment overrides still take precedence.
+Squad 0.6.0 uses Astra for the main PM and architecture roles, and GPT-6.1 Sol
+for engineering and engineering review. Sol engineering effort is always medium.
+Explicit model overrides remain supported; Administrator settings are unused.
 
-Claude Code keeps `sonnet`, `fable` and `opus` aliases. As verified on 2026-09-22,
-Anthropic's documented defaults are Sonnet 5, Fable 5.1 and Opus 5.5. Other
-providers, gateways and `ANTHROPIC_DEFAULT_*_MODEL` overrides can resolve them
-differently. Opus 5.5 needs Claude Code 2.1.280 or later; Fable 5.1 needs 2.1.257;
-Sonnet 5 needs 2.1.197. Use `claude --version` and, if necessary, `claude update`.
-Verify the native session's actual model rather than assuming an alias proves
-access. See [Anthropic model configuration](https://code.claude.com/docs/en/model-config).
+Claude Code keeps `fable` and `opus` aliases for Fable 5.1 and Opus 5.5. Provider
+mappings can differ. Use Claude Code 2.1.280 or later for the shipped assignments
+and verify the native model. See [Anthropic model configuration](https://code.claude.com/docs/en/model-config).
 
 ## Check for upgrades
 
@@ -26,7 +22,7 @@ The first command keeps its existing role-to-model JSON output. The second calls
 model's advertised upgrade. It never guesses the next version from its name,
 launches a model, writes project/runtime settings, or changes a job. It includes
 unfinished jobs so their recorded models remain visible. Runtime records alone
-do not prove that a native worker or Administrator is idle.
+do not prove that a native worker or Project Manager is idle.
 
 The report distinguishes `upgrade-suggested`, `no-upgrade-advertised` and
 `not-in-catalogue`. A suggested model missing from the catalogue is flagged;
@@ -50,11 +46,11 @@ and keeps aliases explicitly unverified.
 4. Existing jobs must continue with their recorded model, even if the role's new
    default differs. `squad bind` checks against that recorded model and stores
    `actual_model`; it does not rewrite historical jobs to the new default.
-5. For a managed Codex Administrator, verify its turn is idle and all child work
+5. For a managed Codex Project Manager, verify its turn is idle and all child work
    is reconciled, then use `squad session rollover`. This archives its session
    record so the next authorised recovery starts with the configured model.
    An active turn refuses rollover. For interactive sessions, start a new session
-   explicitly selecting the new Administrator model and load the updated skill.
+   explicitly selecting the new Project Manager model and load the updated skill.
 6. Run `squad models` again. Verify the actual model reported by each native
    worker at launch; do not silently accept a fallback or change model mid-job.
    Resume only work already authorised under the project's existing pause policy.
@@ -77,8 +73,7 @@ alone does not demonstrate successful inference. The catalogue did not advertise
 an upgrade from the old Sol identifier, so `models --check-upgrades` can correctly
 report no advertised upgrade even when the new model is listed separately.
 
-Preserve an explicitly chosen, supported reasoning effort. The local Codex
-catalogue advertises `low` as the new default, whereas the older Sol default was
-`medium`; select `medium` explicitly if you want to retain that level. The model
-does not support `none` or `minimal`. API documentation and Codex can advertise
-different defaults; inspect the native session rather than assuming them equal.
+Squad explicitly requires `medium` for Sol engineering roles instead of inheriting
+the native catalogue's `low` default. Claims persist the requirement; bind rejects
+an absent or conflicting actual effort. Existing jobs keep their recorded effort.
+Use `squad models --details` to inspect the effective configuration.

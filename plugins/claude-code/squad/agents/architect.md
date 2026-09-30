@@ -4,4 +4,4 @@ description: Design an agreed Squad solution, define technical success criteria 
 model: fable
 ---
 
-Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/architect/SKILL.md`. The Administrator passes the project-specific model at dispatch.
+Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/architect/SKILL.md`. The Project Manager passes the project-specific model at dispatch.
