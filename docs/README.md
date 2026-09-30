@@ -1,7 +1,8 @@
 # Squad documentation
 
 Start with the tutorial, then use the reference while working. You do not need to
-install a recovery service for your first project.
+enable unattended recovery for your first project. Codex’s main PM uses managed
+App Server services even with its timer disabled; see the launcher setup.
 
 ## Getting started
 
@@ -15,13 +16,14 @@ install a recovery service for your first project.
 
 - [Decisions, stalled work and learning](guides/decisions-and-learning.md)
 - [Role job descriptions and delegation](roles/README.md)
-- [Direct planning and retrospective meetings](guides/meetings.md)
+- [The main PM conversation, planning and retrospectives](guides/meetings.md)
 - [Owned blockers and continuation](guides/blockers.md)
 - [Model versions and safe upgrades](guides/model-updates.md)
 - [Workflow, roles and continuation](guides/workflow.md)
 - [Spec-Driven Development integration](guides/spec-driven-development.md)
 - [Codex operation and recovery](guides/codex.md)
 - [Claude Code operation and recovery](guides/claude-code.md)
+- [Upgrade to the main PM session](guides/pm-migration.md)
 - [Migration from older releases](guides/migration.md)
 - [Board backups and recovery](guides/board-backup.md)
 - [Troubleshooting](guides/troubleshooting.md)

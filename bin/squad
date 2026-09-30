@@ -20,8 +20,8 @@ Start here:
   board                          Show the GitHub Project board
   board snapshot [--dry-run]      Save versioned local backup or export JSON
   board restore FILE [OPTIONS]   Preview restore; apply needs project ID and plan hash
-  meeting start planning|retro   Open a direct Project Manager conversation in Zellij
-  meeting status planning|retro  Inspect the meeting record
+  meeting start planning|retro   Compatibility alias for start
+  meeting status pm              Inspect the Claude main PM record
   status                         Show unfinished work and effective policy
   ready                          Explain eligibility and owned blockers
   next [--fresh]                 Ordered continuation actions

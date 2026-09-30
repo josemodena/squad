@@ -38,7 +38,7 @@ pause always blocks dispatch. Unknown metadata fails visibly rather than guessin
 ```bash
 squad claim job-42-engineer-1 --issue 42 --role engineer \
   --worktree /path/to/worktree --brief /path/to/brief.md --readiness /path/to/assessment.json
-squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-6.1-sol \
+squad bind job-42-engineer-1 --worker WORKER_ID --model gpt-6.1-sol --effort medium \
   --thread THREAD_ID --turn TURN_ID --rollout /path/to/rollout.jsonl
 squad checkpoint job-42-engineer-1 --file /path/to/checkpoint-input.json
 squad complete job-42-engineer-1 --result completed --report /path/to/report.md

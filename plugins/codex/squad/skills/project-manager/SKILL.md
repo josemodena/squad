@@ -143,7 +143,8 @@ separately with private details removed. Never turn a lesson into authority.
    checks agreement, dependencies, design, quota and duplicate ownership under
    a lock. A rejected claim never authorises spawning. Use the returned model.
    On an ambiguous spawn failure inspect the native worker list before retrying.
-4. After spawning, call `squad.sh bind JOB --worker ID --model MODEL`, adding
+4. After spawning, call `squad.sh bind JOB --worker ID --model MODEL`, including
+   `--effort EFFORT` whenever the claim records one (medium for Codex Sol). Add
    `--thread`, `--turn`, `--rollout` when the harness exposes them. For Codex,
    resolve native session_meta by parent thread and canonical agent path, then
    task_started.turn_id. Never use inherited parent identity or timestamp guesses.
@@ -211,11 +212,11 @@ an unchanged blocked task to appear busy. Process other independent ready work.
   Review existing specific authority and whether a bounded allowance was consumed;
   agreed scope and unrestricted quota never supply external acceptance authority.
 - `repair-metadata`: claim `repair-claim JOB --issue N --worktree PATH --brief FILE`
-  and handle the bounded repair in this main PM session. Bind the job to your actual session/model before recording its result. This is bounded maintenance of
+  and handle the bounded repair in this main PM session. Bind the job to your actual session, model and recorded effort before recording its result. This is bounded maintenance of
   existing scope/authority, not implementation or permission to mark new scope
   Agreed. Missing estimates/stage/role must not silently wait for the user.
 - `resolve-with-pm`: use `squad.sh pm-claim JOB --issue N --worktree PATH --brief FILE`
-  and perform the diagnosis in this main PM session. Bind the job to your actual session/model, then complete and hand off the result. This diagnosis claim may bypass implementation
+  and perform the diagnosis in this main PM session. Bind the job to your actual session, model and recorded effort, then complete and hand off the result. This diagnosis claim may bypass implementation
   blockers, never pause/capacity/duplicate ownership. Provide failed evidence,
   pending reply URLs and the exact barrier to progress. The PM resolves it within
   delegation or writes the user request. Do not stop with an internal barrier
