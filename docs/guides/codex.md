@@ -9,7 +9,7 @@ invoke `$squad:administrator`; loading a skill alone does not change the main mo
 Existing operate/implement/review invocations remain aliases.
 
 Codex defaults are gpt-6-luna for Administrator, gpt-6-astra for Project Manager,
-Architect and Architecture Reviewer, and gpt-6-sol for Engineer and Engineering
+Architect and Architecture Reviewer, and gpt-6.1-sol for Engineer and Engineering
 Reviewer. The Administrator explicitly selects each subagent model. Its own
 scheduled thread is created with administrator_model and an existing conflicting
 model is rejected with migration instructions.
