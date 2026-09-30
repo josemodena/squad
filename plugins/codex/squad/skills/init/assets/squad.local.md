@@ -32,9 +32,9 @@ github_reply_interval: 300
 administrator_model: gpt-6-luna
 project_manager_model: gpt-6-astra
 architect_model: gpt-6-astra
-engineer_model: gpt-6-sol
+engineer_model: gpt-6.1-sol
 architecture_reviewer_model: gpt-6-astra
-engineering_reviewer_model: gpt-6-sol
+engineering_reviewer_model: gpt-6.1-sol
 max_workers: 3
 continuation_mode: native
 quota_mode: pacing

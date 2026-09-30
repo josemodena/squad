@@ -240,9 +240,9 @@ when working elsewhere. See the [CLI reference](docs/reference/cli.md).
 | Administrator | GPT-6-Luna (`gpt-6-luna`) | Sonnet 5 (`sonnet`) |
 | Project Manager | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
 | Architect | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
-| Engineer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
+| Engineer | GPT-6.1 Sol (`gpt-6.1-sol`) | Opus 5.5 (`opus`) |
 | Architecture Reviewer | GPT-6-Astra (`gpt-6-astra`) | Fable 5.1 (`fable`) |
-| Engineering Reviewer | GPT-6-Sol (`gpt-6-sol`) | Opus 5.5 (`opus`) |
+| Engineering Reviewer | GPT-6.1 Sol (`gpt-6.1-sol`) | Opus 5.5 (`opus`) |
 
 These are configurable assignments, not a claim of universal model availability
 or a price ranking. Claude aliases can vary by provider or override; the versions

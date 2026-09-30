@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.5.2 — 2026-09-30
+
+- Set Codex Engineer and Engineering Reviewer defaults to `gpt-6.1-sol`.
+- Update setup templates, README, examples and model-upgrade guidance, including
+  reasoning-effort defaults and preservation of project overrides and active jobs.
+
 ## 0.5.1 — 2026-09-23
 
 - Share short-lived board reads across commands while revalidating each selected

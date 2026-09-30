@@ -1,6 +1,6 @@
 # Updating role models
 
-Squad 0.4.6 defaults to GPT-6-Luna for administration, GPT-6-Sol for engineering
+Squad 0.5.2 defaults to GPT-6-Luna for administration, GPT-6.1 Sol for engineering
 and engineering review, and GPT-6-Astra for planning and architecture. Explicit
 project settings and environment overrides still take precedence.
 
@@ -61,3 +61,24 @@ and keeps aliases explicitly unverified.
 
 A catalogue suggestion is information, not permission to increase spending or
 change a project's model policy. No automatic upgrade service is installed.
+
+## GPT-6.1 Sol
+
+The Engineer and Engineering Reviewer defaults are `gpt-6.1-sol`. Planning and
+architecture retain Astra, and the Claude model assignments retain their existing
+aliases. Existing project model overrides and recorded jobs keep their values.
+If you explicitly pinned either engineering role to `gpt-6-sol`, update that key
+when starting new work; do not rewrite the model on an existing job.
+
+The official identifier is documented in the
+[OpenAI model reference](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
+and was present in the local Codex catalogue on 2026-09-30. Catalogue presence
+alone does not demonstrate successful inference. The catalogue did not advertise
+an upgrade from the old Sol identifier, so `models --check-upgrades` can correctly
+report no advertised upgrade even when the new model is listed separately.
+
+Preserve an explicitly chosen, supported reasoning effort. The local Codex
+catalogue advertises `low` as the new default, whereas the older Sol default was
+`medium`; select `medium` explicitly if you want to retain that level. The model
+does not support `none` or `minimal`. API documentation and Codex can advertise
+different defaults; inspect the native session rather than assuming them equal.
