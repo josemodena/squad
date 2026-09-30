@@ -5,7 +5,7 @@ real subscription allowance to simulate exhaustion. Automated runtime tests cove
 the deterministic invariants; record actual harness evidence separately.
 
 1. **Parallel completion:** agree two independent engineering issues, dispatch
-   both with Sol and keep Luna Administrator active. Finish one; its Sol Reviewer
+   both with Sol and keep Luna Project Manager active. Finish one; its Sol Reviewer
    must start without waiting for the other Engineer or a conductor tick. Record
    native worker IDs, actual models and completion-to-dispatch delay.
 2. **Conditional architecture:** an item with an approved existing design goes
@@ -16,7 +16,7 @@ the deterministic invariants; record actual harness evidence separately.
    turn, and inspects output before a replacement. A surviving test process is
    not relaunched or killed blindly.
 4. **Provider reset:** simulate unavailable capacity in the provider fixture.
-   The Administrator makes no more assignments; external recovery starts only
+   The Project Manager makes no more assignments; external recovery starts only
    after a fresh available reading. Exercise a short window and weekly window.
 5. **Pause wins:** pause before reset with an event already pending. Neither the
    pending event nor the fresh quota reading starts work. Only explicit user
@@ -29,7 +29,7 @@ the deterministic invariants; record actual harness evidence separately.
    result continues to own its issue until board transition and acknowledgement.
 8. **Changed review head:** push after review preparation. Recording a pass for
    the old commit fails; merge cannot accept that stale pass.
-9. **External decision:** while Administrator is absent, record a stable external
+9. **External decision:** while Project Manager is absent, record a stable external
    event after updating the issue. It wakes once; settle through the inspected
    revision does not consume a concurrently arriving decision.
 10. **Session lifetime:** exercise parent active, native event wait, parent final,

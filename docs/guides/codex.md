@@ -2,19 +2,18 @@
 
 Install the plugin from the squad marketplace and start a new thread after updates.
 Project settings live in `.codex/squad.local.md`. `$squad:init` configures the
-project; `$squad:administrator` runs delivery and `$squad:project-manager` plans it.
-Architect, Engineer and both independent Reviewer roles have their own skills.
-For an interactive Administrator session use `codex --model gpt-6-luna` and
-invoke `$squad:administrator`; loading a skill alone does not change the main model.
-Existing operate/implement/review invocations remain aliases.
+project. Run `squad start` in Zellij to open the main PM conversation, after the
+[one-time managed-session setup](meetings.md#setup). Planning, retrospectives and
+delivery use this same Astra/high session. Loading a skill alone cannot change a
+model. Existing administrator/operate invocations only launch the proper PM.
 
-Codex defaults are gpt-6-luna for Administrator, gpt-6-astra for Project Manager,
-Architect and Architecture Reviewer, and gpt-6.1-sol for Engineer and Engineering
-Reviewer. The Administrator explicitly selects each subagent model. Its own
-scheduled thread is created with administrator_model and an existing conflicting
-model is rejected with migration instructions.
+Codex defaults to gpt-6-astra for PM, Architect and Architecture Reviewer, and
+gpt-6.1-sol at medium effort for Engineer and Engineering Reviewer. Claims record
+the required effort and binds reject a mismatch. The PM selects native subagent
+models explicitly. Managed session creation verifies its own model and effort;
+an incompatible old thread requires an idle rollover.
 
-Native subagents carry ordinary work. The Administrator handles each result as
+Native subagents carry ordinary work. The Project Manager handles each result as
 it arrives and uses native event waits. It stays available for independent work;
 it does not end a turn merely to wait for a child. See [the workflow](workflow.md).
 
@@ -44,7 +43,7 @@ Codex conversation does not transfer session ownership.
 The Go controller/gateway retains its durable start journal, exact native IDs,
 bounded retries and ambiguous-start stop. Existing internal chief-of-staff thread
 filenames are retained for compatibility. Unix sockets are private to the user.
-An Administrator that cannot recover visibly records the blockage; no dummy
+A Project Manager that cannot recover visibly records the blockage; no dummy
 turn is spent just to create an attachable session.
 
 `codex-quota` refreshes account/rateLimits/read and retains short and weekly

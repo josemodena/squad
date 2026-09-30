@@ -14,6 +14,7 @@ HARNESS_DIR = {'codex': '.codex', 'claude-code': '.claude'}
 HELP = '''Usage: squad [--harness codex|claude-code] [--project DIR] COMMAND [ARGS...]
 
 Start here:
+  start [planning|retro|delivery] Open or focus your main Project Manager session
   doctor [--offline] [--recovery]  Check tools, configuration and GitHub login
   init check|apply|create-board   Inspect or provision project tracking
   board                          Show the GitHub Project board
@@ -40,7 +41,7 @@ Start here:
 
 Advanced:
   git COMMAND                    Worktree, submission and reviewed-merge helpers
-  session inspect|attach|rollover Codex managed Administrator session
+  session inspect|attach|rollover Codex managed Project Manager session
   conductor install [OPTIONS]    Install optional external recovery
   conductor uninstall [OPTIONS]  Remove optional external recovery
   handover [OPTIONS]             Generate a handover
@@ -92,9 +93,11 @@ def doctor(harness, args):
         failed |= not ok
     result(platform.system() == 'Linux', 'Linux runtime (macOS/native Windows are not supported)')
     result(sys.version_info >= (3, 10), 'Python >= 3.10')
-    commands = ['bash', 'git', 'gh', 'jq', 'flock', 'date', 'timeout', 'curl', 'codex' if harness == 'codex' else 'claude']
-    if '--recovery' in args:
-        commands += ['systemctl', 'go' if harness == 'codex' else 'zellij']
+    commands = ['zellij', 'bash', 'git', 'gh', 'jq', 'flock', 'date', 'timeout', 'curl', 'codex' if harness == 'codex' else 'claude']
+    if harness == 'codex':
+        commands += ['systemctl', 'go']
+    elif '--recovery' in args:
+        commands += ['systemctl']
     for command in commands:
         result(shutil.which(command) is not None, command)
     if shutil.which('date'):
@@ -108,9 +111,9 @@ def doctor(harness, args):
                'GitHub CLI >= 2.46.0 (upgrade gh if this check fails)')
     if '--offline' not in args and shutil.which('gh'):
         result(subprocess.run(['gh', 'auth', 'status', '-h', 'github.com'], capture_output=True).returncode == 0, 'GitHub CLI authentication (gh auth login)')
-    if '--recovery' in args and shutil.which('systemctl'):
+    if (harness == 'codex' or '--recovery' in args) and shutil.which('systemctl'):
         result(subprocess.run(['systemctl', '--user', 'show-environment'], capture_output=True).returncode == 0, 'systemd user manager')
-    if '--recovery' in args and harness == 'codex' and shutil.which('go'):
+    if harness == 'codex' and shutil.which('go'):
         version = subprocess.run(['go', 'env', 'GOVERSION'], capture_output=True, text=True).stdout.strip()
         match = re.match(r'go(\d+)\.(\d+)', version)
         result(bool(match and tuple(map(int, match.groups())) >= (1, 23)), 'Go >= 1.23')
@@ -158,7 +161,7 @@ def main():
         fail('installation moved; rerun install.sh from a complete Squad checkout')
     if command == 'board' and rest and rest[0] in ('snapshot','restore','options'):
         os.execvp('bash',['bash',str(scripts/'board-backup.sh'),*rest])
-    targets = {'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
+    targets = {'start': 'start.sh', 'init': 'init.sh', 'git': 'gitw.sh', 'handover': 'handover.sh',
                'runtime': 'runtime.sh', 'meeting': 'meeting.sh', 'blocker': 'blocker.sh', 'session': 'conductor-session.sh'}
     if command == 'session' and harness != 'codex':
         fail('managed session commands are available only for Codex')

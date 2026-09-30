@@ -1,12 +1,14 @@
+For the 0.6.0 session change, follow [PM migration](pm-migration.md).
+
 # Migrating to native Squad coordination
 
 1. Preserve user pauses and conductor hold files. Finish/checkpoint live work
    before changing the operating model. A plugin update does not authorise resume.
 2. Update the plugin and start a new harness session for the new skills. The old
    operate/implement/review skill names are compatibility aliases. Chief of Staff
-   is replaced by Administrator and Project Manager; authoring and review split
+   is replaced by the main Project Manager; authoring and review split
    into architecture and engineering. Old Claude agent files are replaced.
-3. Add the six role-model keys from the settings template and max_workers (default
+3. Add the five role-model keys from the settings template and max_workers (default
    3). Set continuation_mode: native. Keep project-specific scope and decisions.
 4. Take a versioned `squad board snapshot` first (see [board recovery](board-backup.md)).
    `squad init apply` also refuses board writes unless its fresh backup succeeds.
@@ -20,11 +22,11 @@
    workers. Do not launch a second worker to make the new records look complete.
    Preserve old handovers as narrative recovery context.
 7. For Codex, rebuild/reinstall the conductor with `--no-enable` while paused.
-   An old Astra coordinating thread cannot silently become the Luna Administrator:
+   An old coordinator cannot silently become the new PM session:
    use `squad --harness codex session rollover` only when idle, after preserving its state.
    The next authorised recovery creates a thread with the configured model.
 8. When the user actually resumes, clear the applicable deliberate hold and enable
-   the timer, or start the Administrator interactively. Record one stable external
+   the timer, or start the Project Manager interactively. Record one stable external
    event for agreed ready work. No dummy model turn is required for activation.
 
 The `legacy` continuation setting retains the old handover-driven scheduler for
@@ -63,6 +65,6 @@ For a request absent from cached readiness, use `inbox watch` with its original
 request date so replies already posted are included. Route imported replies through
 `pm-claim`; do not ask the user to repeat an existing approval.
 
-Unchanged PM assessments do not repeat automatically. The Administrator must
+Unchanged PM assessments do not repeat automatically. The Project Manager must
 record concrete next work or an owned wait, and act on new replies or changed
 readiness. Keep previous role models, user pauses and unrelated configuration.

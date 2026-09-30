@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start a Administrator session when the quota allows and none is alive.
+# Start a Project Manager session when the quota allows and none is alive.
 #
 # A systemd user timer runs this every ten minutes. It starts a session only
 # when all four things are true:
@@ -260,7 +260,7 @@ fi # legacy handover compatibility
 
 # --- 7. start ---------------------------------------------------------------
 
-brief="Use the Squad administrator skill. Read issue #${issue_number} for legacy narrative context. Read squad.sh recover, handle durable results and use native subagent notifications to keep work moving. Claim and checkpoint assignments. Preserve user pauses. Read the latest handover for narrative context."
+brief="Use the Squad project-manager skill. Read issue #${issue_number} for legacy narrative context. Read squad.sh recover, handle durable results and use native subagent notifications to keep work moving. Claim and checkpoint assignments. Preserve user pauses. Read the latest handover for narrative context."
 project_dir="$(squad_project_dir)"
 
 if [ "$dry_run" -eq 1 ]; then
@@ -282,13 +282,11 @@ fi
 
 date -u +%s >"$STAMP"
 
-# new-tab prints the new tab's identifier. Logging it means the tab this run
-# opened can later be named exactly, without guessing from a name or a focus.
-if tab_id="$(zellij --session "$SESSION" action new-tab \
-     --name "$TAB" --cwd "$project_dir" --close-on-exit \
-     -- "$HARNESS" --model "$SQUAD_ADMINISTRATOR_MODEL" "$brief" 2>/dev/null)"; then
-  log started "tab '$TAB' (id ${tab_id:-unknown}) in session '$SESSION', cwd $project_dir, brief: $brief"
+# Use exactly the same project-scoped PM record as an interactive squad start.
+# The launcher focuses a live tab or resumes its captured native session.
+if result="$(SQUAD_MEETING_ZELLIJ_SESSION="$SESSION" bash "$SCRIPT_DIR/start.sh" delivery 2>&1)"; then
+  log started "$result"
 else
-  log failed "could not open tab '$TAB' in session '$SESSION'"
+  log failed "$result"
   exit 1
 fi

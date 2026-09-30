@@ -1,7 +1,7 @@
 # Owned blockers and continuing work
 
 Project Status, Squad Stage/Responsible role and runtime job state are separate.
-A completed agent turn is not a completed issue. The Administrator keeps moving
+A completed agent turn is not a completed issue. The Project Manager keeps moving
 agreed work through implementation, review, correction and acceptance until its
 completion criteria pass. It may wait for a user decision/input, a named dependency,
 a deliberate pause or unavailable capacity. Each wait has an owner and next action;
@@ -24,7 +24,7 @@ After recovery, every result, rejected launch, repair or user decision:
 `next` returns `can_continue` for dispatch, PM repairs and PM resolution, plus named actions/waits.
 This is a deterministic action list, not a new scheduler or a guarantee that an
 external party responds. An item can wait legitimately; it must never be forgotten
-or left with an unowned “blocked” report. The Administrator instructions prohibit
+or left with an unowned “blocked” report. The Project Manager instructions prohibit
 ending while eligible work or an internal metadata repair can proceed.
 
 ## Visible requests for the user
@@ -100,7 +100,7 @@ Every delivery claim requires `--readiness assessment.json`:
 
 Use `not-required` only where that requirement genuinely does not apply. This is
 an explicit agent assessment, not an automated proof of arbitrary product evidence.
-The Administrator must inspect the cited records and the brief; scripts cannot
+The Project Manager must inspect the cited records and the brief; scripts cannot
 understand all natural-language instructions. Known issue blockers and readiness
 metadata still independently prevent claims. A missing or negative assessment
 cannot create a job.

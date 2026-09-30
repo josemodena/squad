@@ -27,12 +27,12 @@ class CLI(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('doctor', result.stdout)
     def test_infers_both_role_maps(self):
-        for harness, model in [('codex','gpt-6-luna'),('claude-code','sonnet')]:
+        for harness, model in [('codex','gpt-6-astra'),('claude-code','fable')]:
             with self.subTest(harness=harness):
                 self.config(harness)
                 result = self.run_cli('--harness', harness, 'models')
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(json.loads(result.stdout)['administrator'], model)
+                self.assertEqual(json.loads(result.stdout)['project-manager'], model)
     def test_upgrade_check_is_read_only_and_preserves_project_override(self):
         self.config('codex')
         config = self.project/'.codex/squad.local.md'

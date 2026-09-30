@@ -45,8 +45,12 @@ Keep test artifacts out of the delivery tree. For Python tests, use
 Inspect new files before cleanup; never remove unknown work or relax the clean-tree
 merge guard to make a test run pass.
 
-Route unresolved delivery barriers to the Administrator for PM resolution; do not
+Route unresolved delivery barriers to the Project Manager for PM resolution; do not
 originate user approval requests. At completion or a significant failure, propose
 an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
 prevent a recurring mistake. Proposed lessons are not loaded as active guidance
 until the PM reviews them. Avoid routine transcript summaries and duplicate lessons.
+
+Use the model and effort recorded in the claim. For Codex Sol assignments the
+required reasoning effort is medium. If the native worker differs, stop and
+report the mismatch before doing work; do not merely label it medium in a report.

@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 
-ROLES = ('administrator', 'project-manager', 'architect', 'engineer', 'architecture-reviewer', 'engineering-reviewer')
+ROLES = ('project-manager', 'architect', 'engineer', 'architecture-reviewer', 'engineering-reviewer')
 ACTIVE = ('claimed', 'running', 'interrupted')
 TERMINAL = ('completed', 'failed', 'cancelled')
 STAGES = {'architecture': 'architect', 'architecture-review': 'architecture-reviewer', 'engineering': 'engineer', 'engineering-review': 'engineering-reviewer', 'planning': 'project-manager'}
@@ -34,6 +34,11 @@ def settings(path=None):
     for k, v in os.environ.items():
         if k.startswith('SQUAD_'):
             values[k[6:].lower()] = v
+    # Sol engineering work always uses medium, including projects with older overrides.
+    for role in ('engineer', 'engineering_reviewer'):
+        model = values.get(role+'_model', '')
+        if model.startswith('gpt-') and 'sol' in model:
+            values[role+'_effort'] = 'medium'
     return values
 
 
@@ -426,11 +431,12 @@ def parser():
         if name in ('ready','next','board-read'): command.add_argument('--fresh', action='store_true')
     s = sub.add_parser('api-status')
     s = sub.add_parser('fields'); s.add_argument('issue',type=int); s.add_argument('--file',required=True)
+    s = sub.add_parser('pm-check'); s.add_argument('--session',required=True)
     s = sub.add_parser('context'); s.add_argument('role', choices=ROLES); s.add_argument('--issue',type=int)
     s = sub.add_parser('inbox'); s.add_argument('action',choices=('poll','status','watch','unwatch')); s.add_argument('--issue',type=int); s.add_argument('--since'); s.add_argument('--force',action='store_true')
     s = sub.add_parser('memory'); s.add_argument('action',choices=('add','review','list')); s.add_argument('--file'); s.add_argument('--id'); s.add_argument('--pm-job'); s.add_argument('--pm-session')
     s = sub.add_parser('pm-claim'); s.add_argument('job'); s.add_argument('--issue',type=int,required=True); s.add_argument('--worktree',required=True); s.add_argument('--brief',required=True)
-    s = sub.add_parser('models'); s.add_argument('--check-upgrades', action='store_true')
+    s = sub.add_parser('models'); s.add_argument('--check-upgrades', action='store_true'); s.add_argument('--details', action='store_true')
     pol = sub.add_parser('policy')
     pol.add_argument('--mode', choices=('pacing', 'weekly', 'unrestricted'))
     pol.add_argument('--reason')
@@ -449,7 +455,7 @@ def parser():
     s = sub.add_parser('dependency'); s.add_argument('action', choices=('list','add','remove')); s.add_argument('issue', type=int); s.add_argument('prerequisite', nargs='?', type=int)
     s = sub.add_parser('claim'); s.add_argument('job'); s.add_argument('--issue', type=int, required=True); s.add_argument('--role', choices=ROLES, required=True); s.add_argument('--worktree', required=True); s.add_argument('--brief', required=True); s.add_argument('--readiness')
     s = sub.add_parser('repair-claim'); s.add_argument('job'); s.add_argument('--issue',type=int,required=True); s.add_argument('--worktree',required=True); s.add_argument('--brief',required=True)
-    s = sub.add_parser('bind'); s.add_argument('job'); s.add_argument('--worker', required=True); s.add_argument('--model', required=True); s.add_argument('--thread'); s.add_argument('--turn'); s.add_argument('--rollout')
+    s = sub.add_parser('bind'); s.add_argument('job'); s.add_argument('--worker', required=True); s.add_argument('--model', required=True); s.add_argument('--effort'); s.add_argument('--thread'); s.add_argument('--turn'); s.add_argument('--rollout')
     s = sub.add_parser('checkpoint'); s.add_argument('job'); s.add_argument('--file', required=True)
     s = sub.add_parser('complete'); s.add_argument('job'); s.add_argument('--result', choices=('completed','failed','interrupted','cancelled'), required=True); s.add_argument('--report', required=True)
     s = sub.add_parser('settle'); s.add_argument('--through', type=int, required=True)
@@ -498,8 +504,15 @@ def main():
                     watches[str(args.issue)] = {'since':inbox.epoch(args.since)}
                 else: watches.pop(str(args.issue),None)
                 result = watches
+    elif cmd == 'pm-check':
+        import knowledge
+        result = knowledge.pm_source(config,session=args.session,main_only=True)
     elif cmd == 'models':
         result = {role: config.get(role.replace('-', '_')+'_model') for role in ROLES}
+        if args.details and args.check_upgrades:
+            raise ValueError('Choose --details or --check-upgrades')
+        if args.details:
+            result = {role: {'model': model, 'effort': config.get(role.replace('-', '_')+'_effort')} for role, model in result.items()}
         if args.check_upgrades:
             from model_updates import check_upgrades
             result = check_upgrades(config, result, read(root(config)/'state.json', {}))
@@ -657,7 +670,7 @@ def main():
                 brief = Path(args.brief).read_text()
                 worktree = str(Path(args.worktree).resolve())
                 if not Path(worktree).is_dir(): raise ValueError('worktree must exist before claim')
-                job = {'id': args.job, 'issue': args.issue, 'role': role, 'kind':'resolution' if resolution else 'metadata-repair' if repair else 'delivery', 'readiness_assessment':assessment, 'model': model, 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
+                job = {'id': args.job, 'issue': args.issue, 'role': role, 'kind':'resolution' if resolution else 'metadata-repair' if repair else 'delivery', 'readiness_assessment':assessment, 'model': model, 'effort': config.get(role.replace('-', '_')+'_effort'), 'status': 'claimed', 'worktree': worktree, 'brief': brief, 'artifacts': str(root(config)/'jobs'/args.job), 'claimed_at': time.time(), 'handled': False}
                 import knowledge
                 context_path = root(config)/'jobs'/args.job/'context.json'
                 atomic(context_path, knowledge.context(config,role,args.issue))
@@ -682,8 +695,10 @@ def main():
                     if job['status'] not in ('claimed','running'): raise ValueError('job is terminal')
                     if job['role'].endswith('reviewer') and any(j.get('worker') == args.worker and j['issue'] == job['issue'] and j['role'] in ('architect','engineer') for j in jobs.values()): raise ValueError('author cannot review their own work')
                     if args.model != job['model']: raise ValueError('actual model differs from configured role; stop and resolve explicitly')
+                    if job.get('effort') and args.effort != job['effort']:
+                        raise ValueError('actual effort differs from required role effort; stop and resolve explicitly')
                     if job.get('worker') and job['worker'] != args.worker: raise ValueError('job already bound to another worker')
-                    job.update({'worker': args.worker, 'actual_model': args.model, 'thread': args.thread, 'turn': args.turn, 'rollout': args.rollout, 'status': 'running'})
+                    job.update({'worker': args.worker, 'actual_model': args.model, 'actual_effort': args.effort, 'thread': args.thread, 'turn': args.turn, 'rollout': args.rollout, 'status': 'running'})
                 elif cmd == 'checkpoint':
                     job['checkpoint'] = checkpoint(job, args.file)
                 elif cmd == 'complete':
@@ -737,7 +752,7 @@ def main():
                 result = {'handoff_seconds': handoffs, 'completed_review_assignments':sum(j['role'].endswith('reviewer') and j['status'] == 'completed' for j in jobs.values()), 'observed_seconds': observed, 'avoidable_idle_seconds': avoidable, 'by_reason_seconds': totals, 'avoidable_idle_percent': 100*avoidable/observed if observed else None, 'note': 'Intervals between explicit observations, not inferred historical utilisation.'}
             elif cmd == 'wake':
                 # A native turn remains the launch authority. This only requests recovery;
-                # the gateway must refuse it while the Administrator is active.
+                # the gateway must refuse it while the Project Manager is active.
                 for j in jobs.values():
                     if j['status'] not in ('claimed','running') or not all(j.get(k) for k in ('rollout','thread','turn')):
                         continue

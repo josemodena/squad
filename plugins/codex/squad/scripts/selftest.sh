@@ -138,8 +138,8 @@ check_contains "settings: the quota shape"  "$out" "20% a day, 60% a week"
 check_contains "settings: the decider"      "$out" "A Person (label action-for-decider)"
 
 models="$(bash "$SCRIPTS/squad.sh" models)"
-check_equal "settings: six role models" "$(printf '%s' "$models" | jq 'length')" "6"
-check_contains "settings: administrator configured" "$models" '"administrator"'
+check_equal "settings: five role models" "$(printf '%s' "$models" | jq 'length')" "5"
+check_contains "settings: project manager configured" "$models" '"project-manager"'
 check_contains "settings: separate architecture reviewer" "$models" '"architecture-reviewer"'
 check_contains "settings: separate engineering reviewer" "$models" '"engineering-reviewer"'
 

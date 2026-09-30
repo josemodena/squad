@@ -214,6 +214,10 @@ func runTurn(rawURL, stateDir, launch, brief, cwd string) error {
 }
 
 func runTurnWithModel(rawURL, stateDir, launch, brief, cwd, model string) error {
+	return runTurnConfigured(rawURL, stateDir, launch, brief, cwd, model, "")
+}
+
+func runTurnConfigured(rawURL, stateDir, launch, brief, cwd, model, effort string) error {
 	currentPath := filepath.Join(stateDir, "current.json")
 	s, err := readCurrent(currentPath, launch)
 	if err != nil {
@@ -253,6 +257,9 @@ func runTurnWithModel(rawURL, stateDir, launch, brief, cwd, model string) error 
 	var resolved map[string]any
 	if threadID == "" {
 		params := map[string]any{"cwd": cwd}
+		if effort != "" {
+			params["config"] = map[string]any{"model_reasoning_effort": effort}
+		}
 		if model != "" {
 			params["model"] = model
 		}
@@ -306,7 +313,19 @@ func runTurnWithModel(rawURL, stateDir, launch, brief, cwd, model string) error 
 		}
 	}
 	if model != "" && resolved["model"] != model {
-		return fmt.Errorf("Administrator model mismatch: wanted %s, got %v; roll over the idle legacy thread before recovery", model, resolved["model"])
+		return fmt.Errorf("Project Manager model mismatch: wanted %s, got %v; roll over the idle legacy thread before recovery", model, resolved["model"])
+	}
+	if effort != "" && resolved["reasoningEffort"] != effort {
+		return fmt.Errorf("Project Manager effort mismatch: wanted %s, got %v; roll over the idle legacy thread before recovery", effort, resolved["reasoningEffort"])
+	}
+	if model != "" && effort != "" {
+		// Do not rewrite the gateway-owned thread record: native turn state may
+		// already have advanced. Keep the verified role binding separately.
+		if err := atomicJSON(filepath.Join(stateDir, "pm-authority.json"), map[string]any{
+			"thread_id": threadID, "role": "project-manager", "model": model, "effort": effort, "cwd": cwd,
+		}); err != nil {
+			return err
+		}
 	}
 	s.ThreadID, s.Resolved = threadID, resolved
 	if resumePhase == "submitting-turn" {
@@ -475,7 +494,8 @@ func main() {
 	state := fs.String("state", "", "conductor state directory")
 	launch := fs.String("launch", "", "launch id")
 	brief := fs.String("brief", "", "turn input")
-	model := fs.String("model", "", "configured Administrator model")
+	model := fs.String("model", "", "configured Project Manager model")
+	effort := fs.String("effort", "", "configured Project Manager effort")
 	cwd := fs.String("cwd", "", "project directory")
 	threadID := fs.String("thread", "", "thread id")
 	turnID := fs.String("turn", "", "turn id")
@@ -491,7 +511,7 @@ func main() {
 		if *state == "" || *launch == "" || *brief == "" || *cwd == "" {
 			err = errors.New("run requires --state, --launch, --brief and --cwd")
 		} else {
-			err = recordRunResult(*state, *launch, runTurnWithModel(*url, *state, *launch, *brief, *cwd, *model))
+			err = recordRunResult(*state, *launch, runTurnConfigured(*url, *state, *launch, *brief, *cwd, *model, *effort))
 		}
 	case "steer":
 		err = control(*url, "turn/steer", *threadID, *turnID, *input)

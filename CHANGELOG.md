@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.6.0 — 2026-09-30
+
+- Replace the model-backed Administrator with one main Project Manager session
+  for planning, delivery and retrospectives; keep routine administration in CLI scripts.
+- Add `squad start`, guarded PM identity checks and shared interactive/recovery
+  session ownership. Preserve exact native identities and refuse duplicate launches.
+- Force medium reasoning effort for new Codex Sol Engineer and Engineering
+  Reviewer jobs; record effort at claim and reject mismatches at bind.
+- Update both plugins, role contracts, README, guides and migration instructions.
+
 ## 0.5.2 — 2026-09-30
 
 - Set Codex Engineer and Engineering Reviewer defaults to `gpt-6.1-sol`.

@@ -4,4 +4,4 @@ description: Independently review a Squad architecture and technical acceptance 
 model: fable
 ---
 
-Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/architecture-reviewer/SKILL.md`. The Administrator passes the project-specific model at dispatch.
+Read and follow `${CLAUDE_PLUGIN_ROOT}/skills/architecture-reviewer/SKILL.md`. The Project Manager passes the project-specific model at dispatch.

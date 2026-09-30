@@ -73,7 +73,8 @@ is your actual decision; do not fabricate quota readings to get past this step.
 
 ## 4. Agree one small task
 
-Invoke `$squad:project-manager` or `/squad:project-manager`:
+Prepare the [main PM launcher](../guides/meetings.md#setup), then run `squad start`
+in Zellij. The launcher selects the configured model and effort. Ask the PM:
 
 > Plan one small improvement with me. Write clear acceptance criteria, record
 > prerequisites, propose the responsible role and review path, and estimate the
@@ -92,23 +93,17 @@ squad ready
 Look for the agreed item and its eligibility reasons. Do not start an agent to
 work around an excluded item; resolve its recorded blocker.
 
-## 5. Start the Administrator
+## 5. Continue with the PM
 
-Use the configured Administrator model for the main session. For the shipped
-defaults, start `codex --model gpt-6-luna` or `claude --model sonnet`, if available
-to your account, and invoke `$squad:administrator` or `/squad:administrator`.
+In that same conversation, ask:
 
 > Execute the agreed eligible issue using Squad. Use the configured roles and
 > models, save checkpoints, obtain independent review, and keep the board current.
 
-The Administrator claims a job before spawning a worker, binds its native
-identity, processes results, and advances to review. You should see distinct
-worker identities for author and reviewer. It merges through the guarded command
-only after a passing review of the exact commit.
-
-A skill does not change the main session's model automatically. If your harness
-cannot select the configured worker model, resolve that before dispatch; do not
-silently substitute and record the wrong model.
+The PM uses deterministic scripts to claim work, bind native identities, record
+results and advance to review. You should see distinct author and reviewer
+identities. Sol engineering workers use medium effort. A merge requires a passing
+review of the exact commit. You do not need another coordinating session.
 
 ## 6. Inspect, pause and continue
 
@@ -120,7 +115,7 @@ squad pause --reason "User is reviewing the first delivery cycle"
 ```
 
 Pause prevents new claims and recovery launches; it does not forcibly interrupt
-already-running workers. Tell the active Administrator to checkpoint and stop
+already-running workers. Tell the active Project Manager to checkpoint and stop
 its workers at safe boundaries when you need execution to stop now.
 
 After your explicit decision to continue:

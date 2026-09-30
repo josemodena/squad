@@ -2,6 +2,8 @@
 # Optional terminal tab presentation; App Server thread/turn state owns lifecycle.
 set -uo pipefail
 
+[ -z "${SQUAD_PM_MAIN:-}" ] || exit 0
+
 # A meeting neither renames the Administrator tab nor posts its handover/commits its files.
 if [ -n "${SQUAD_MEETING_ID:-}" ]; then
   :

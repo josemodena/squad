@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claim newly actionable events and start at most one owned Administrator session.
+# Claim newly actionable events and start at most one owned Project Manager session.
 set -uo pipefail
 
 SQUAD_TOOL="conductor.sh"
@@ -148,7 +148,7 @@ if [ "$SQUAD_CONTINUATION_MODE" = native ]; then
 fi
 
 # Native mode recovers from durable execution, not human-authored handover syntax.
-# Native notifications remain the normal path while the Administrator is active.
+# Native notifications remain the normal path while the Project Manager is active.
 if [ "$SQUAD_CONTINUATION_MODE" = native ] && [ ! -e "$HOLD" ] && [ ! -e "$STATE/current.json" ]; then
   recovery="$(bash "$SCRIPT_DIR/runtime.sh" wake 2>>"$LOG")" || skip "runtime recovery unreadable"
   if [ "$(printf '%s' "$recovery" | jq -r '.ready')" = true ]; then
@@ -315,7 +315,7 @@ done
 jq '.phase="claimed"' "$STATE/current.json" >"$STATE/current.json.tmp" && mv -f "$STATE/current.json.tmp" "$STATE/current.json"
 ledger claimed --arg launch_id "$launch_id" --arg events "$event_ids"
 [ "${SQUAD_CONDUCTOR_FAIL_AT:-}" != after-claim ] || exit 99
-brief="Use the Squad administrator skill. Reconcile durable state through squad.sh recover and handle events $event_ids ($reasons). Use native subagent notifications; keep coordinating and wait on harness events while workers run. Claim before dispatch, bind the actual worker/model, checkpoint and acknowledge results. Use squad.sh next for subsequent assignments and route stalled items/replies to the Project Manager. Settle the recovered revision only after handling it. Preserve user pauses. The handover summarises records; it is not the wake mechanism."
+brief="Use the Squad project-manager skill. Reconcile durable state through squad.sh recover and handle events $event_ids ($reasons). Use native subagent notifications; keep coordinating and wait on harness events while workers run. Claim before dispatch, bind the actual worker/model, checkpoint and acknowledge results. Use squad.sh next for subsequent assignments and resolve stalled items/replies within your delegated authority; ask the user only when necessary. Settle the recovered revision only after handling it. Preserve user pauses. The handover summarises records; it is not the wake mechanism."
 if [ "$dry_run" -eq 1 ]; then
   for f in "$STATE"/claimed/*.json; do [ ! -e "$f" ] || mv "$f" "$STATE/pending/$(basename "$f")"; done
   rm -f "$STATE/current.json"; log dry-run "would start '$TAB' for events: $event_ids"; exit 0
@@ -329,7 +329,7 @@ jq --arg unit "$unit" '.phase="controller-starting" | .unit=$unit' "$STATE/curre
 if systemd-run --user --quiet --collect --unit "$unit" \
   --property=Restart=on-failure --property=RestartSec=2 \
   --property=StartLimitBurst=3 --property=StartLimitIntervalSec=infinity \
-  "$client" run --model "$SQUAD_ADMINISTRATOR_MODEL" --url "$url" --state "$STATE" --launch "$launch_id" --brief "$brief" --cwd "$project_dir"; then
+  "$client" run --model "$SQUAD_PROJECT_MANAGER_MODEL" --effort "$SQUAD_PROJECT_MANAGER_EFFORT" --url "$url" --state "$STATE" --launch "$launch_id" --brief "$brief" --cwd "$project_dir"; then
   : >"$STATE/controllers/$launch_id.started"
   log started "launch $launch_id, App Server controller $unit, events: $event_ids"
   ledger start --arg launch_id "$launch_id" --arg events "$event_ids" --arg usage "$usage" --arg attribution shared-or-unknown

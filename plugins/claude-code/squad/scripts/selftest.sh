@@ -138,8 +138,8 @@ check_contains "settings: the quota shape"  "$out" "20% a day, 60% a week"
 check_contains "settings: the decider"      "$out" "A Person (label action-for-decider)"
 
 models="$(bash "$SCRIPTS/squad.sh" models)"
-check_equal "settings: six role models" "$(printf '%s' "$models" | jq 'length')" "6"
-check_contains "settings: administrator configured" "$models" '"administrator"'
+check_equal "settings: five role models" "$(printf '%s' "$models" | jq 'length')" "5"
+check_contains "settings: project manager configured" "$models" '"project-manager"'
 check_contains "settings: separate architecture reviewer" "$models" '"architecture-reviewer"'
 check_contains "settings: separate engineering reviewer" "$models" '"engineering-reviewer"'
 
@@ -324,6 +324,7 @@ cat > "$WORK/bin/zellij" <<'FAKE'
 printf 'zellij %s\n' "$*" >> "$FAKE_ZELLIJ_LOG"
 args="$*"
 case "$args" in
+  *"new-tab --help"*) printf "INITIAL_COMMAND\n" ;;
   *"list-sessions"*)
     if [ -n "${FAKE_ZELLIJ_LIST_FAILS:-}" ]; then
       printf '%s' "${FAKE_ZELLIJ_LIST_OUTPUT:-}"
@@ -341,6 +342,8 @@ esac
 exit 0
 FAKE
 chmod +x "$WORK/bin/zellij"
+printf '#!/bin/sh\nexit 0\n' > "$WORK/bin/claude"
+chmod +x "$WORK/bin/claude"
 
 export FAKE_ZELLIJ_LOG="$WORK/zellij.log"
 CONDUCTOR_LOG="$WORK/conductor.log"
@@ -348,12 +351,15 @@ CONDUCTOR_STATE="$WORK/conductor-state"
 mkdir -p "$CONDUCTOR_STATE"
 
 conductor() {
+  # Each fixture simulates a new terminal session after prior work ended.
+  rm -rf "$CONDUCTOR_STATE/runtime/meetings"
   : > "$CONDUCTOR_LOG"
   : > "$FAKE_ZELLIJ_LOG"
   (
     cd "$REPOA" || exit 1
     SQUAD_SETTINGS="$REPOA/.claude/squad.local.md" \
     SQUAD_SCRATCH_ROOT="$CONDUCTOR_STATE" \
+    SQUAD_RUNTIME_DIR="$CONDUCTOR_STATE/runtime" \
     SQUAD_CONDUCTOR_LOG="$CONDUCTOR_LOG" \
     SQUAD_CONDUCTOR_COOLDOWN=0 \
     "$@" bash "$SCRIPTS/conductor.sh" --issue 99 >/dev/null 2>&1
@@ -443,13 +449,13 @@ if date -u -d '@0' '+%Y' >/dev/null 2>&1; then
   printf '%s\n' "$(( $(date -u +%s) - 4000 ))" > "$CONDUCTOR_STATE/conductor.started"
   out="$(conductor env SQUAD_CONDUCTOR_QUOTA=run \
     SQUAD_CONDUCTOR_HANDOVER="$(handover_written 5000)")"
-  check_contains "conductor: the backoff ends after an hour" "$out" "tab 'a-person'"
+  check_contains "conductor: the backoff ends after an hour" "$out" '"action": "launched"'
 
   # A hand-over written since the last start clears it at once.
   date -u +%s > "$CONDUCTOR_STATE/conductor.started"
   out="$(conductor env SQUAD_CONDUCTOR_QUOTA=run \
     SQUAD_CONDUCTOR_HANDOVER="$(handover_written -120)")"
-  check_contains "conductor: a newer hand-over clears the backoff" "$out" "tab 'a-person'"
+  check_contains "conductor: a newer hand-over clears the backoff" "$out" '"action": "launched"'
   rm -f "$CONDUCTOR_STATE/conductor.started"
 else
   printf 'skip  conductor: restart backoff parsing requires GNU date (Linux runtime target)\n'
@@ -457,11 +463,11 @@ fi
 
 out="$(conductor env SQUAD_CONDUCTOR_QUOTA=run \
   SQUAD_CONDUCTOR_HANDOVER="$(handover_with 'do a thing')")"
-check_contains "conductor: otherwise it starts a session" "$out" "tab 'a-person'"
-check_contains "conductor: with the hand-over brief"      "$out" "issue #99"
+check_contains "conductor: otherwise it starts a session" "$out" '"action": "launched"'
+check_contains "conductor: selects PM model" "$out" '"model": "fable"'
 zlog="$(cat "$FAKE_ZELLIJ_LOG")"
-check_contains "conductor: it opens a tab of that name"   "$zlog" "new-tab --name a-person"
-check_contains "conductor: running the harness command"   "$zlog" "-- claude --model sonnet Use the Squad administrator skill."
+check_contains "conductor: it opens a tab of that name"   "$zlog" "new-tab --name squad-"
+check_contains "conductor: running the harness command"   "$zlog" "meeting.py _run"
 check_absent   "conductor: and never kills anything"      "$zlog" "action close-tab"
 
 # --- 7d. the sprint sets both board fields ----------------------------------

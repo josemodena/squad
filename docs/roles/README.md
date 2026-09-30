@@ -5,8 +5,7 @@ These are the shared role contracts delivered to both plugins at startup.
 
 | Role | Accountable for |
 | --- | --- |
-| [Administrator](administrator.md) | Continuity, dispatch, handoffs and recovery |
-| [Project Manager](project-manager.md) | Delivery resolution, planning and all user escalation |
+| [Project Manager](project-manager.md) | Main session, planning, delegation, continuity, recovery and user decisions |
 | [Architect](architect.md) | Implementable design and technical success criteria |
 | [Engineer](engineer.md) | Tested implementation and reviewable evidence |
 | [Architecture Reviewer](architecture-reviewer.md) | Independent design assessment |

@@ -99,12 +99,15 @@ Done}"
   : "${SQUAD_ESTIMATE_FIELD:=Estimate (credits %)}"
   : "${SQUAD_CONTINUATION_MODE:=native}"
   : "${SQUAD_QUOTA_MODE:=pacing}"
-  : "${SQUAD_ADMINISTRATOR_MODEL:=gpt-6-luna}"
+  : "${SQUAD_PROJECT_MANAGER_EFFORT:=high}"
   : "${SQUAD_PROJECT_MANAGER_MODEL:=gpt-6-astra}"
   : "${SQUAD_ARCHITECT_MODEL:=gpt-6-astra}"
   : "${SQUAD_ENGINEER_MODEL:=gpt-6.1-sol}"
   : "${SQUAD_ARCHITECTURE_REVIEWER_MODEL:=gpt-6-astra}"
   : "${SQUAD_ENGINEERING_REVIEWER_MODEL:=gpt-6.1-sol}"
+
+  case "$SQUAD_ENGINEER_MODEL" in gpt-*sol*) SQUAD_ENGINEER_EFFORT=medium ;; esac
+  case "$SQUAD_ENGINEERING_REVIEWER_MODEL" in gpt-*sol*) SQUAD_ENGINEERING_REVIEWER_EFFORT=medium ;; esac
 
   : "${SQUAD_HARNESS_REPOSITORY:=openai/codex}"
   : "${SQUAD_HARNESS_VERSION:=}"
@@ -119,9 +122,9 @@ Done}"
   : "${SQUAD_HARNESS_VERSION_FILE:=}"
   : "${SQUAD_HARNESS_WATCHLIST:=}"
 
-  # The conductor. The terminal multiplexer session the Administrator lives
+  # The conductor. The terminal multiplexer session the Project Manager lives
   # in, the tab it gets, and the command that is a harness session. The tab is
-  # named after the Administrator, so a project that calls the role something
+  # named after the Project Manager, so a project that calls the role something
   # else gets a tab of that name without saying so twice.
   : "${SQUAD_CONDUCTOR_SESSION:=codex}"
   : "${SQUAD_CONDUCTOR_TAB:=$(squad_slug "${SQUAD_REPOSITORY:-project}-${SQUAD_CHIEF_OF_STAFF:-lead}")}"

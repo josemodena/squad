@@ -8,17 +8,16 @@ not raw agent activity. The user owns direction, scope and external commitments.
 
 | Role | Responsibility | Codex default | Claude Code default |
 | --- | --- | --- | --- |
-| Administrator | Native session coordination, dispatch, continuation, recovery and gated merge | Luna | Sonnet |
-| Project Manager | Planning, priorities, dependencies, role assignment, forecasting, planning/retro with user | Astra | Fable |
+| Project Manager | Main conversation, planning, native delegation, continuity, recovery and user decisions | Astra | Fable |
 | Architect | Design, technical criteria, decomposition and initial time/cost estimates | Astra | Fable |
 | Engineer | Test-driven implementation and evidence | Sol | Opus |
 | Architecture Reviewer | Independent assessment of an immutable design revision | Astra | Fable |
 | Engineering Reviewer | Independent code and integration review at a specific commit | Sol | Opus |
 
-Project settings override defaults. The Administrator sets the model explicitly
-when spawning and records the actual model. It routes stopped work to the
-Project Manager, who owns resolution and commissions technical reassessment as
-needed. Only the PM originates user escalations; the Administrator does not build.
+Project settings override defaults. The Project Manager sets the model explicitly
+and effort when spawning and records both at bind. Sol engineering roles require
+medium effort. The PM resolves stopped work and commissions technical reassessment
+as needed; routine checks and tracking use CLI scripts. Only the PM originates user escalations; the Project Manager does not build.
 See the [role job descriptions](../roles/README.md) and
 [delegation policy](../roles/authority.md).
 
@@ -32,9 +31,9 @@ needed; an approved existing design can cover several engineering assignments.
 The Engineer records red → green → refactor evidence. Non-executable work uses
 appropriate acceptance checks with an explicit explanation. A separate Reviewer
 checks the agreed criteria and a meaningful additional boundary/failure case.
-The Administrator merges only the exact independently reviewed commit.
+The Project Manager merges only the exact independently reviewed commit.
 
-The Administrator dispatches independent eligible work within configured and
+The Project Manager dispatches independent eligible work within configured and
 native concurrency limits. It processes each result promptly, without waiting for
 unrelated workers. It uses native event waits when there is nothing else to do;
 a model polling loop is not useful work. Fresh assignments get fresh workers.
@@ -43,7 +42,7 @@ a model polling loop is not useful work. Fresh assignments get fresh workers.
 
 GitHub owns plans, scope, dependencies, review evidence and delivery status.
 Durable local runtime records own job claims, worker identities, checkpoints and
-completion acknowledgement. The Administrator owns continuation; every worker
+completion acknowledgement. The Project Manager owns continuation; every worker
 records progress before a final handover can become necessary.
 
 A handover summarises those records. It is not the sole wake mechanism and losing

@@ -1,96 +1,76 @@
-# Direct planning and retrospective meetings
+# Talk directly to the Project Manager
 
-Ask the Administrator “Let's plan the next sprint” or “Let's run the retrospective”.
-It opens a new Zellij tab in your project with the Project Manager as the main
-agent. Talk directly there; the Administrator does not relay the conversation.
-Already agreed work can continue in the original session unless you pause it.
-
-The launcher uses `project_manager_model` from the selected harness's settings
-(Astra for Codex, Fable for Claude Code by default), and `project_manager_effort`
-(default `high`). It passes both explicitly to the interactive CLI, never a
-headless worker. Model access still depends on your account: a CLI error is not
-permission to substitute a cheaper model. Check the model shown in the new session.
-
-## Requirements and commands
-
-Use Zellij with `action new-tab` support for an initial command after `--`, plus
-the relevant authenticated CLI. Tested with Zellij 0.44.3. The launcher checks this
-capability and reports an upgrade requirement on older versions. Run inside a
-Zellij session, or set `meeting_zellij_session` to an existing session's name when
-the Administrator runs outside it (for example, through an app server).
-It does not create a new Zellij server or guess a session from a list.
+Run `squad start` inside Zellij. Squad opens or focuses your project's main PM
+session, using `project_manager_model` and `project_manager_effort` (default
+`high`). The same conversation handles planning, retrospectives and delivery.
+There is no Administrator relaying your messages and no second PM to brief.
 
 ```bash
-squad --harness codex meeting start planning
-squad --harness codex meeting start retro
-squad --harness claude-code meeting start planning
+squad --harness codex start planning
+squad --harness codex start retro
+squad --harness claude-code start delivery
+squad start --dry-run
 ```
 
-Add `--dry-run` to preview the project, model, effort and launch arguments without
-starting a model or creating records. Both harnesses must have their own settings.
-The commands also work through each plugin's `scripts/meeting.sh` entry point,
-without installing the checkout-backed `squad` command.
+The topic helps initialise a new session. When a PM session already exists,
+Squad returns you to it; tell the PM what you want to discuss. A repeated command
+does not start another coordinator or change the current conversation's model.
+The old `meeting start planning|retro` commands redirect to this entry point.
 
-Tab names include the project, a directory/harness identity and the meeting kind.
-Repeated requests focus an existing live meeting. Different projects and harnesses
-have separate records and locks even when their runtime base is shared. New
-meetings after completion get a new tab; old tabs remain available for reading.
+## Setup
 
-## Discussion and completion
+Use an authenticated harness and Zellij with support for an initial command after
+`action new-tab --` (tested with 0.44.3). Run inside Zellij or set
+`meeting_zellij_session` to an existing session. Squad checks the environment;
+it does not assume a session is absent because an agent cannot see a terminal.
 
-The initial prompt loads the installed Project Manager and planning/retrospective
-skills and points to project decisions and meeting notes. The Project Manager
-reads the current records and comes with a proposal. Unavailable GitHub data is
-reported, not reconstructed from guesses. Nothing becomes agreed simply because
-the agent proposed it.
-
-During the discussion the Project Manager saves durable notes:
+For Codex, prepare the managed-session services once:
 
 ```bash
-squad --harness codex meeting checkpoint planning --file /path/to/notes.md
+squad --harness codex conductor install --no-enable
 ```
 
-When you conclude the meeting, it writes agreed changes through the tracker and
-records the outcome:
+Start the exact `squad-app-server-gateway@INSTANCE.service` printed by the installer
+with `systemctl --user start`. This starts its backend too. Then run `squad start`.
+The services give interactive and recovery turns one shared owner. The timer
+remains optional; enable it only when you want unattended recovery. `--no-enable`
+does not disable a previously enabled timer.
+
+Claude Code launches the native CLI directly in its PM tab. Its project-scoped
+record captures the session UUID for exact resume. Recovery uses that same
+launcher and record. Model access depends on your account; an unavailable model
+is an error to resolve, not permission to substitute another one.
+
+## During a conversation
+
+You discuss the work directly with the PM. It delegates bounded technical work to
+native subagents, checks their results and handles the next step. It can plan
+while execution is paused. Opening a session never resumes a user-paused project
+or authorises proposed scope.
+
+The PM records agreed decisions, task checkpoints and owned next actions as work
+progresses. Claude's main-session notes use:
 
 ```bash
-squad --harness codex meeting complete planning --file /path/to/outcome.md
+squad meeting checkpoint pm --file /path/to/notes.md
 ```
 
-Completion adds an idempotent external event to the existing Squad runtime. The
-Administrator reads it at its next coordination/recovery boundary, reads the
-outcome and evaluates ready work. The existing conductor can discover it when
-recovering an idle session. This is durable delivery, not a native subagent
-notification or a promise of immediate interruption. Completion never unpauses
-the project and does not authorise unresolved proposals.
+Codex uses runtime checkpoints and a durable handover alongside its managed
+thread. Ending a planning discussion does not end the PM's ownership of delivery.
+A separate reviewer still assesses each design or code change.
 
-## Interruptions and returning later
+## Interrupted sessions
 
-An open live tab keeps its conversation. If the CLI exits, another `meeting start`
-reopens the meeting with its durable checkpoint. For exact transcript recovery,
-the SessionStart hook records the native session UUID when supplied by the harness.
-The Project Manager can also record the **actual** UUID when available:
+Codex's `squad session inspect` shows the exact managed thread and turn.
+`squad start` attaches to it. The gateway prevents overlapping turn starts and
+preserves native model, effort and permission policy. An incompatible old session
+requires the [migration steps](pm-migration.md); loading a skill cannot switch it.
 
-```bash
-squad --harness codex meeting checkpoint planning --file /path/to/notes.md \
-  --session-id SESSION_UUID
-```
+For Claude, inspect `squad meeting status pm`. If the CLI exits, `squad start`
+resumes the captured UUID and saved notes. Without a captured UUID, it starts
+from durable notes and does not claim to recover an unrecorded transcript. An
+ambiguous launch fails closed. After checking that the old process and tab are
+gone, use `squad meeting reconcile pm --reason TEXT`, then `squad start`.
 
-The next launch then uses the harness's resume command with that ID and explicit
-model/effort. Without a recorded UUID, recovery starts a fresh conversation from
-notes; it does not claim to recover uncheckpointed transcript content or guess the
-most recent session. If native resume fails, diagnose that error before relaunching.
-
-`meeting status planning` prints the durable record. If a launch response was lost
-or the tab was force-closed, the launcher refuses to start a potential duplicate.
-Check Zellij and the recorded process first. Once you have established that no
-meeting is running, use:
-
-```bash
-squad --harness codex meeting reconcile planning --reason 'Confirmed the old session ended'
-squad --harness codex meeting start planning
-```
-
-Close a dead tab before reconciliation if it still exists. Meeting records and
-copied notes are private local files beneath the runtime's `meetings/` directory.
-Retain them with project runtime backups; they are never automatically published.
+Launch records and notes remain private beneath the project's runtime directory.
+A failure never authorises a duplicate worker or deletion of an old worktree.

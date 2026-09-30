@@ -22,11 +22,11 @@ the design or implement it. Inspect at least one material counterexample.
 
 Report pass, fixes required or do not proceed with evidence tied to the design
 revision. Write the report and post it with `squad.sh comment ISSUE --file FILE`.
-Only a pass on the current design allows the Administrator to set Design Approved.
+Only a pass on the current design allows the Project Manager to set Design Approved.
 A changed design invalidates the prior pass. Complete the named job with its
-durable report; native notification returns control to the Administrator.
+durable report; native notification returns control to the Project Manager.
 
-Route unresolved delivery barriers to the Administrator for PM resolution; do not
+Route unresolved delivery barriers to the Project Manager for PM resolution; do not
 originate user approval requests. At completion or a significant failure, propose
 an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
 prevent a recurring mistake. Proposed lessons are not loaded as active guidance

@@ -26,7 +26,7 @@ may reuse an approved design; explain the applicable reference. New scope goes
 to the Project Manager. Checkpoint before long investigations and record a durable
 report before `squad.sh complete JOB --result completed --report FILE`.
 
-Route unresolved delivery barriers to the Administrator for PM resolution; do not
+Route unresolved delivery barriers to the Project Manager for PM resolution; do not
 originate user approval requests. At completion or a significant failure, propose
 an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
 prevent a recurring mistake. Proposed lessons are not loaded as active guidance

@@ -305,7 +305,7 @@ apply_fields() {
   field_exists "$SQUAD_ESTIMATE_FIELD" || create_simple_field "$SQUAD_ESTIMATE_FIELD" NUMBER
   field_exists "$SQUAD_SPRINT_FIELD" || create_single_select "$SQUAD_SPRINT_FIELD" "Sprint 1"
   field_exists "$SQUAD_NEEDED_BY_FIELD" || create_simple_field "$SQUAD_NEEDED_BY_FIELD" DATE
-  field_exists "Responsible role" || create_single_select "Responsible role" $'administrator\nproject-manager\narchitect\nengineer\narchitecture-reviewer\nengineering-reviewer'
+  field_exists "Responsible role" || create_single_select "Responsible role" $'project-manager\narchitect\nengineer\narchitecture-reviewer\nengineering-reviewer'
   field_exists "Stage" || create_single_select "Stage" $'planning\narchitecture\narchitecture-review\nengineering\nengineering-review\ndone'
   field_exists "Agreement" || create_single_select "Agreement" $'Proposed\nAgreed'
   field_exists "Design" || create_single_select "Design" $'Required\nApproved\nExisting'
@@ -377,7 +377,7 @@ apply_entry_point() {
 This project runs on Squad, an agile squad of agents. Read the Squad guide
 before anything else; it is the README of the installed \`squad\` plugin.
 
-The roles are the User, Administrator, Project Manager, Architect, Engineer,
+The roles are the User, Project Manager, Architect, Engineer,
 Architecture Reviewer and Engineering Reviewer. Who plays each one here, which board holds the work, when the sprint
 starts and what the project may spend are all in \`.claude/squad.local.md\`.
 
@@ -389,7 +389,7 @@ The rules every session follows without being asked:
   and the Decider agrees the plan. No build starts on an unagreed plan.
 - **One branch per piece.** Every git write goes through the plugin's
   \`gitw.sh\`. Nothing is committed straight to main.
-- **Native continuation.** The Administrator dispatches fresh role subagents,
+- **Native continuation.** The Project Manager dispatches fresh role subagents,
   handles each result immediately and waits on native events when needed.
   Record claims, checkpoints and results through \`squad.sh\`; a final prose
   handover is never the sole recovery record.

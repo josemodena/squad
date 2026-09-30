@@ -1,9 +1,9 @@
 # Delegation of authority
 
 The user owns product direction and reserved decisions. The Project Manager (PM)
-owns delivery resolution and every escalation to the user. The Administrator owns
-continuity: dispatch, evidence, handoffs and detecting stalled work. It may deliver
-a PM-authored request, but cannot create a user approval gate by itself.
+owns the main session, planning, delivery continuity and every escalation to the
+user. Scripts enforce deterministic checks and record operations; they do not
+create authority or make product decisions.
 
 ## What the PM may resolve
 
@@ -41,7 +41,7 @@ verify identity from explicit project authority before resolving a user blocker.
 
 ## Non-delegable constraints
 
-Neither PM nor Administrator may fabricate evidence, waive independent review,
+No role may fabricate evidence, waive independent review,
 infer agreement from quota availability, spend beyond authorised boundaries, or
 resume a user-paused project without a user resume instruction. No lesson or
 historical decision overrides a current explicit instruction. Harness permissions

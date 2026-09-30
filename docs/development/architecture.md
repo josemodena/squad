@@ -40,8 +40,8 @@ runtime state holds claims, actual native identity, checkpoints, policy and
 completion acknowledgement. The latter is protected by a local file lock and
 atomic file replacement. It is not a distributed scheduler.
 
-The Administrator claims before spawning and binds the returned native identity.
-Ordinary completion comes directly from subagents. An absent Administrator can
+The Project Manager claims before spawning and binds the returned native identity.
+Ordinary completion comes directly from subagents. An absent Project Manager can
 recover unhandled results through the conductor. Both paths inspect the same job
 ownership record. A result must be handled and acknowledged before a replacement
 assignment can own that issue.

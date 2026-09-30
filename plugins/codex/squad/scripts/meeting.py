@@ -17,7 +17,7 @@ import uuid
 
 from squad_runtime import atomic, event, read, root, settings, transaction
 
-KINDS = ('planning', 'retro')
+KINDS = ('pm', 'planning', 'retro')
 
 
 def call(argv):
@@ -72,11 +72,16 @@ def harness_argv(record):
 
 
 def prompt_for(record, scripts):
+    if record['kind']=='pm':
+        from coordinator import prompt
+        return (prompt(record['config'],record['config'].get('pm_topic','delivery'))
+                + f" Read {scripts.parent/'skills/project-manager/SKILL.md'}. Use scripts from {scripts}. "
+                + f"Checkpoint with meeting.sh checkpoint pm --file NOTES. Read session record {record['record_path']} and prior notes before asking the user to repeat decisions.")
     skill = 'plan' if record['kind'] == 'planning' else 'retro'
     plugin = scripts.parent
     helper = shlex.quote(str(scripts/'meeting.sh'))
     return f'''You are the Squad Project Manager in a direct, interactive {record['kind']} meeting with the user.
-This is a main session, not an Administrator or a delegated worker. Do not launch another meeting.
+This is a retained legacy meeting, not the main delivery coordinator. Do not launch another meeting.
 Read AGENTS.md/CLAUDE.md if present, {record['settings_file']},
 {plugin}/skills/project-manager/SKILL.md and {plugin}/skills/{skill}/SKILL.md.
 Use scripts from {scripts}. Run bash {scripts}/squad.sh context project-manager for role and reviewed memory. Read current project records and previous decisions; do not invent board state if unavailable.
@@ -87,7 +92,7 @@ Keep durable notes with: bash {helper} checkpoint {record['kind']} --file /absol
 If the harness exposes your exact session UUID, add --session-id UUID to enable exact transcript resume.
 When the user concludes the meeting, save the agreed decisions and outstanding questions in project records,
 then run: bash {helper} complete {record['kind']} --file /absolute/path/to/outcome.md
-The completion command records a durable Administrator event. Do not claim a worker job or resume paused execution.
+The completion command records a durable recovery event. Do not claim a worker job or resume paused execution.
 Already agreed execution can continue independently; do not edit implementation files or stop workers for this meeting.
 '''
 
@@ -119,6 +124,17 @@ def launch(config, harness, kind, dry_run=False):
         raise ValueError('Upgrade Zellij: new-tab must support an initial command after --')
     with locked(directory):
         old = read(path)
+        if old and old.get('status')!='completed' and (old.get('model')!=model or old.get('effort')!=effort):
+            raise ValueError('Existing PM session uses a different model or effort; checkpoint and complete it before changing configuration')
+        if kind=='pm':
+            tabs=zellij(session,'query-tab-names').splitlines()
+            for legacy_kind in ('planning','retro'):
+                legacy=read(directory/(legacy_kind+'.json'),{})
+                if legacy.get('status') in ('running','launching') and legacy.get('tab') in tabs:
+                    raise ValueError('An older direct PM meeting is still open; checkpoint and close it before starting the main PM')
+            legacy_tab=config.get('conductor_tab')
+            if legacy_tab and legacy_tab in tabs and legacy_tab!=(old or {}).get('tab'):
+                raise ValueError('The legacy coordinator tab is still open; reconcile and close it before starting the main PM')
         if old and old['status'] != 'completed':
             tabs = zellij(old['zellij_session'], 'query-tab-names').splitlines()
             if old['tab'] in tabs and old['status'] in ('launching','running'):
@@ -221,6 +237,9 @@ def session_hook():
             uuid.UUID(sid)
             record['session_id']=sid
             atomic(path,record)
+    if record['kind']=='pm':
+        print('Squad: main Project Manager session. Own planning and delivery; use the project-manager skill and CLI. Preserve pause and reconcile workers before dispatch.')
+        return
     print('Squad: direct Project Manager meeting. Keep the meeting tab name. '
           'Read the meeting record and checkpoints; do not coordinate workers or launch another meeting.')
 
