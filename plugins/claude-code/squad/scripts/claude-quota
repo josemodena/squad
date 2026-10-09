@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# The skills run this file as "bash <path>". The next three lines hand a bash
+# run over to Python; to Python they are a string and do nothing.
+""":"
+exec python3 "$0" "$@"
+":"""
 """The project's share of the weekly subscription limit.
 
 The rule: a fixed percentage of the weekly limit per day, a cap for the week,
