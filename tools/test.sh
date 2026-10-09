@@ -13,6 +13,7 @@ for harness in codex claude-code; do
   python3 "$plugin/scripts/test_board_backup.py"
   bash "$plugin/scripts/selftest.sh"
   bash "$plugin/scripts/test-finish-guards.sh"
+  bash "$plugin/scripts/test-start-housekeeping.sh"
 done
 bash plugins/codex/squad/scripts/test-conductor-events.sh
 (cd plugins/codex/squad/conductor-appserver && go test -race ./...)

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Squad housekeeping. Prune worktrees, delete branches already merged into
-# main, clear the scratch directories of branches that no longer exist, list
-# old transcripts with their size, and report what disk is left.
+# main, clear the scratch directories of branches that no longer exist, prune
+# the Docker build cache and anonymous dangling volumes, list old transcripts
+# with their size, and report what disk is left.
 #
 #   bash scripts/housekeeping.sh --dry-run    what would go, nothing deleted
 #   bash scripts/housekeeping.sh              the same, and it goes
@@ -16,6 +17,10 @@
 #      writes to its scratch directory and its branch may not exist yet.
 #
 # Transcripts are listed, never deleted: they are the only record of a session.
+# A named Docker volume is listed, never removed: it may hold a stopped stack's
+# data. A read-only tree (a Go module cache, say) is made writable before it is
+# deleted. A delete that fails is reported and the run carries on; the exit is
+# then 1.
 set -euo pipefail
 
 SQUAD_TOOL="housekeeping.sh"
@@ -32,6 +37,8 @@ SCRATCH_ROOT="$SQUAD_SCRATCH_ROOT"
 TRANSCRIPTS_DIR="$SQUAD_TRANSCRIPTS_DIR"
 MEMORY_STORE="$SQUAD_MEMORY_STORE"
 FREED_MB=0
+FAILED=0
+SKIP_DOCKER=0
 
 usage() {
   cat >&2 <<'USAGE'
@@ -42,6 +49,7 @@ Usage:
                   [--transcripts <path>]
                   [--transcript-days <n>]
                   [--memory-store <path>]
+                  [--skip-docker]
 
 The paths default to this project's settings in .codex/squad.local.md.
 USAGE
@@ -56,6 +64,7 @@ while [ "$#" -gt 0 ]; do
     --transcripts)       TRANSCRIPTS_DIR="${2:-}"; [ -n "$TRANSCRIPTS_DIR" ] || usage; shift 2 ;;
     --transcript-days)   TRANSCRIPT_DAYS="${2:-}"; [ -n "$TRANSCRIPT_DAYS" ] || usage; shift 2 ;;
     --memory-store)      MEMORY_STORE="${2:-}"; [ -n "$MEMORY_STORE" ] || usage; shift 2 ;;
+    --skip-docker)       SKIP_DOCKER=1; shift ;;
     -h|--help)           usage ;;
     *) squad_die "Unknown option '$1'." ;;
   esac
@@ -179,16 +188,63 @@ EOL
     fi
 
     mb="$(size_mb "$dir")"
+    readonly_note=""
+    if [ -n "$(find "$dir" ! -perm -u+w -print -quit 2>/dev/null)" ]; then
+      readonly_note=", read-only files made writable first"
+    fi
     if [ "$DRY_RUN" -eq 1 ]; then
-      printf '  would delete %s (%s MB)\n' "$name" "$mb"
-    else
-      rm -rf -- "$dir"
+      printf '  would delete %s (%s MB%s)\n' "$name" "$mb" "$readonly_note"
+    elif chmod -R u+w -- "$dir" 2>/dev/null; rm -rf -- "$dir" 2>/dev/null; then
       FREED_MB=$((FREED_MB + mb))
-      printf '  deleted %s (%s MB)\n' "$name" "$mb"
+      printf '  deleted %s (%s MB%s)\n' "$name" "$mb" "$readonly_note"
+    else
+      FAILED=$((FAILED + 1))
+      printf '  could not delete %s: %s\n' "$name" \
+        "$(rm -rf -- "$dir" 2>&1 | head -1 || true)"
     fi
   done
   [ "$listed" -gt 0 ] || printf '  none\n'
   printf '  anything not named piece-, chore- or fix- was left alone\n'
+fi
+
+# --- 3b. the Docker build cache and anonymous dangling volumes --------------
+
+squad_say "Docker"
+if [ "$SKIP_DOCKER" -eq 1 ]; then
+  printf '  docker skipped (--skip-docker)\n'
+elif ! command -v docker >/dev/null 2>&1; then
+  printf '  docker skipped: it is not installed\n'
+elif ! docker info >/dev/null 2>&1; then
+  printf '  docker skipped: the daemon is not reachable\n'
+else
+  cache="$(docker system df --format '{{.Type}}\t{{.Size}}\t{{.Reclaimable}}' 2>/dev/null \
+    | awk -F'\t' '$1 == "Build Cache" { print $2 }' || true)"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '  would prune the docker build cache (%s)\n' "${cache:-size unknown}"
+  elif docker builder prune -f >/dev/null 2>&1; then
+    printf '  pruned the docker build cache (%s)\n' "${cache:-size unknown}"
+  else
+    FAILED=$((FAILED + 1))
+    printf '  could not prune the docker build cache\n'
+  fi
+  anonymous="$(docker volume ls -q --filter dangling=true --filter label=com.docker.volume.anonymous 2>/dev/null || true)"
+  dangling="$(docker volume ls -q --filter dangling=true 2>/dev/null || true)"
+  while IFS= read -r volume; do
+    [ -n "$volume" ] || continue
+    if ! squad_in_list "$anonymous" "$volume"; then
+      printf '  kept volume %s: it is named, so it may hold data\n' "$volume"
+    elif [ "$DRY_RUN" -eq 1 ]; then
+      printf '  would remove dangling volume %s\n' "$volume"
+    elif docker volume rm "$volume" >/dev/null 2>&1; then
+      printf '  removed dangling volume %s\n' "$volume"
+    else
+      FAILED=$((FAILED + 1))
+      printf '  could not remove dangling volume %s\n' "$volume"
+    fi
+  done <<EOL
+$dangling
+EOL
+  [ -n "$dangling" ] || printf '  no dangling volumes\n'
 fi
 
 # --- 4. old transcripts, listed and never deleted ---------------------------
@@ -227,4 +283,8 @@ if [ "$DRY_RUN" -eq 1 ]; then
   printf '\nDry run: nothing was deleted. Run it again without --dry-run to free the space.\n'
 else
   printf '\nFreed %s MB.\n' "$FREED_MB"
+fi
+if [ "$FAILED" -gt 0 ]; then
+  printf '%s item(s) could not be removed; see "could not" above.\n' "$FAILED"
+  exit 1
 fi

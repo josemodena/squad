@@ -598,7 +598,7 @@ touch -d "40 days ago" "$HK/transcripts/old.jsonl"
 hk() {
   ( cd "$HK/repo" && bash "$SCRIPTS/housekeeping.sh" \
       --scratch-root "$HK/scratch" --transcripts "$HK/transcripts" \
-      --scratch-age-hours 1 --transcript-days 14 "$@" 2>&1 )
+      --scratch-age-hours 1 --transcript-days 14 --skip-docker "$@" 2>&1 )
 }
 
 out="$(hk --dry-run)"
