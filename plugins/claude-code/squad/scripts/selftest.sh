@@ -320,13 +320,13 @@ else
   bad "stop hook: a dirty tree warns in valid JSON and does not block" "$out"
 fi
 
-# The guard hooks fail closed: a hook that cannot start or times out blocks
-# compaction or the stop instead of letting it through (Claude Code 2.1.295).
-for event in PreCompact Stop; do
-  got="$(jq -r --arg e "$event" '[.hooks[$e][].hooks[].onFailure] | unique | join(",")' "$ROOT/hooks/hooks.json")"
-  check_equal "hooks: $event declares onFailure block" "$got" "block"
-done
-for event in SessionStart SessionEnd; do
+# The compaction guard fails closed: a PreCompact hook that cannot start, times
+# out or exits oddly blocks the compaction, so the hand-over is never skipped
+# silently (Claude Code 2.1.295). The Stop hook warns and never blocks, so it
+# stays fail-open; 2.1.295 does not block a stop on a failed hook anyway.
+got="$(jq -r '[.hooks.PreCompact[].hooks[].onFailure] | unique | join(",")' "$ROOT/hooks/hooks.json")"
+check_equal "hooks: PreCompact declares onFailure block" "$got" "block"
+for event in Stop SessionStart SessionEnd; do
   got="$(jq -r --arg e "$event" '[.hooks[$e][].hooks[].onFailure // "none"] | unique | join(",")' "$ROOT/hooks/hooks.json")"
   check_equal "hooks: $event stays fail-open" "$got" "none"
 done

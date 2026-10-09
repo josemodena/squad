@@ -3,7 +3,9 @@
 # of the work survives in the one place the next session already looks.
 #
 # It posts on the sprint issue when it can. When it cannot, it prints the
-# hand-over instead, so the text is at least in the transcript. It never fails.
+# hand-over instead, so the text is at least in the transcript. It never fails
+# by itself; hooks.json sets onFailure "block", so if it cannot start or times
+# out, the compaction is blocked rather than run without a hand-over.
 set -uo pipefail
 
 # A meeting neither renames the Administrator tab nor posts its handover/commits its files.

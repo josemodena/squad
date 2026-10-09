@@ -51,6 +51,15 @@ working systemd user manager. It creates uniquely named runtime-only test units
 and removes them afterward. This check is not run automatically on hosts without
 a user manager; record it separately when validating a recovery release.
 
+**Fail-closed compaction guard (Claude Code 2.1.295+):** copy
+`plugins/claude-code/squad` to a scratch directory, keep only the PreCompact hook,
+point its command at a script that does not exist, and run
+`claude -p "/compact" --resume SESSION --fork-session --plugin-dir COPY
+--output-format stream-json --verbose` on a short existing session. The stream must
+report `compact_result: failed` with `Compaction blocked by PreCompact hook`.
+Without `onFailure` the same run compacts. A Stop hook is not blocked this way
+in 2.1.295, which is why the Stop hook stays fail-open.
+
 For live scenarios, record the release, OS, harness version, configured models,
 steps, observed native events and outcome in a redacted test report. A scenario
 being listed here does not mean it has been demonstrated on every harness.
