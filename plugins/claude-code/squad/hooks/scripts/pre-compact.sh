@@ -22,7 +22,7 @@ if [ ! -x "$HANDOVER" ]; then
   exit 0
 fi
 
-if out="$(bash "$HANDOVER" 2>&1)"; then
+if out="$(timeout 20 bash "$HANDOVER" 2>&1)"; then
   printf 'Squad: hand-over posted on the sprint issue.\n%s\n' "$out"
   exit 0
 fi
@@ -32,5 +32,5 @@ case "$out" in
 esac
 
 printf 'Squad: the hand-over could not be posted (%s). It reads:\n\n' "$(printf '%s' "$out" | head -1)"
-bash "$HANDOVER" --dry-run 2>/dev/null || true
+timeout 20 bash "$HANDOVER" --dry-run 2>/dev/null || true
 exit 0
