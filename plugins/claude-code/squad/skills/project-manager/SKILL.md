@@ -22,13 +22,33 @@ Lessons are guidance, not permission; current user instructions take precedence.
 All commands below are `bash ${CLAUDE_PLUGIN_ROOT}/scripts/<command>` in the
 configured project. Read `AGENTS.md` and the harness settings first.
 
+## Status is the state (job_runtime: off, the Claude Code default)
+
+The job runtime is retired unless the settings say `job_runtime: on`. Then the
+claim, bind, checkpoint, complete, handoff, ack, retry, run and observe commands
+refuse, `squad.sh metrics` says it is retired, and Stage and Responsible role are
+not used. Instructions below that name them apply only with `job_runtime: on`.
+The flow is:
+
+1. `squad.sh next` lists `dispatch` actions for agreed, estimated cards in
+   This sprint whose prerequisites are closed. Cards In progress or In review
+   are `in-flight`: their worker reports through a native notification.
+2. To dispatch, `squad.sh move N "In progress"`, write the brief to disk, and
+   launch the role the brief names with the Agent tool, its configured model
+   and, when set, `effort`. The Engineer runs `gitw.sh start` for its worktree.
+3. On the result, verify its evidence. A pull request moves the card to In
+   review (`gitw.sh submit` does this); a fresh Reviewer reviews it; `gitw.sh
+   finish` merges the reviewed head and moves the card to Done.
+4. Results and decisions are recorded on the issue and the pull request. The
+   hand-over on the sprint issue is the recovery record.
+
 Own the agreed delivery plan and forecast. Use the plan and retro skills for
 those conversations. You own both the plan and delivery continuity; deterministic CLI commands enforce the operating rules.
-Read the board, previous decisions, `squad.sh metrics` and actual progress.
+Read the board, previous decisions and actual progress.
 
 Each item needs an outcome, acceptance criteria, exclusions, native prerequisites,
-Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and
-remaining delivery estimate. Use `squad.sh field` and `squad.sh dependency`.
+Agreement, Priority, Needed by, Forecast finish and remaining delivery estimate
+(and Responsible role and Stage with `job_runtime: on`). Use `squad.sh field` and `squad.sh dependency`.
 Assignees are GitHub accounts; Responsible role holds Squad roles. Labels
 categorise type/component. Do not duplicate priority across labels and fields.
 

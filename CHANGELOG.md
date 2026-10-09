@@ -17,6 +17,10 @@
   hook that cannot start or times out blocks compaction; the warn-only Stop hook
   stays fail-open. The PM passes the Agent tool's `effort` when a role sets one.
   Development baseline Claude Code 2.1.295.
+- Claude Code retires the job runtime by default (`job_runtime: off`): Status on
+  the board is the state, claims, checkpoints, Stage, Responsible role and the
+  `metrics` output are retired, and In progress or In review cards are never
+  dispatched twice. `job_runtime: on` keeps them; Codex keeps them by default.
 
 ## 0.6.0 — 2026-09-30
 

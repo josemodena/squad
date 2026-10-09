@@ -29,7 +29,7 @@ Write verdict/evidence to a report file, then use
 marker and label, and does not emit a normal conductor event. Finish the named
 job with its durable report. The Project Manager handles the native completion.
 
-Before long checks, checkpoint the named job and use `squad.sh run JOB -- COMMAND ARGS` so process identity, logs and exit status survive a lost model turn.
+With `job_runtime: on`, checkpoint the named job before long checks and use `squad.sh run JOB -- COMMAND ARGS` so process identity, logs and exit status survive a lost model turn; otherwise write each long check's log and exit status to a file in the scratch directory.
 
 Keep test artifacts out of the delivery tree. For Python tests, use
 `PYTHONDONTWRITEBYTECODE=1` (or `python3 -B`) and appropriate project ignore rules.
@@ -42,6 +42,6 @@ an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
 prevent a recurring mistake. Proposed lessons are not loaded as active guidance
 until the PM reviews them. Avoid routine transcript summaries and duplicate lessons.
 
-Use the model and effort recorded in the claim. For Codex Sol assignments the
+Use the model and effort the brief or claim records. For Codex Sol assignments the
 required reasoning effort is medium. If the native worker differs, stop and
 report the mismatch before doing work; do not merely label it medium in a report.

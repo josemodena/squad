@@ -24,7 +24,8 @@ Preserve design evidence in a versioned file/commit and post a link through the
 tracker CLI. Give the Architecture Reviewer an exact immutable revision. Work
 may reuse an approved design; explain the applicable reference. New scope goes
 to the Project Manager. Checkpoint before long investigations and record a durable
-report before `squad.sh complete JOB --result completed --report FILE`.
+report before `squad.sh complete JOB --result completed --report FILE` (with
+`job_runtime: on`; otherwise on the issue).
 
 Route unresolved delivery barriers to the Project Manager for PM resolution; do not
 originate user approval requests. At completion or a significant failure, propose

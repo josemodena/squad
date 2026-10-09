@@ -110,7 +110,7 @@ Name the things Squad cannot do for them: agreeing the first sprint goal,
 writing the rest of `AGENTS.md`, and adding the settings file to
 `.gitignore` if anything in it should stay off the remote.
 
-Configure all five role models and max_workers. Default to native continuation. Run init apply to add Responsible role, Stage, Agreement, Design, Priority, Forecast finish and Estimate (hours). Existing cards need explicit agreement/design classification before eligibility; do not infer approval during migration. Preserve any user pause and legacy hold files. See the runtime command reference shipped with this plugin.
+Configure all five role models and max_workers. Default to native continuation. Run init apply to add Agreement, Design, Priority, Forecast finish and Estimate (hours). Existing cards need explicit agreement/design classification before eligibility; do not infer approval during migration. Preserve any user pause and legacy hold files. See the runtime command reference shipped with this plugin.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
 

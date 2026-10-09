@@ -165,6 +165,13 @@ check_contains "needed-by: a bad date is refused" "$out" "The date must read YYY
 out="$(SQUAD_SETTINGS="$WORK/nothing.md" bash "$SCRIPTS/squad.sh" board 2>&1)"
 check_contains "settings: a missing file is named" "$out" "cannot be read"
 
+# Claude Code retires the job runtime by default: metrics says so, a claim refuses.
+out="$(cd "$PROJECT" && bash "$SCRIPTS/squad.sh" metrics 2>&1)"
+check_contains "job runtime: off by default, metrics says it is retired" "$out" '"retired": true'
+out="$(cd "$PROJECT" && bash "$SCRIPTS/squad.sh" checkpoint j1 --file /dev/null 2>&1)"; rc=$?
+check_contains "job runtime: checkpoint refuses as retired" "$out" "retired"
+check_equal    "job runtime: and exits non-zero" "$([ "$rc" -ne 0 ] && echo yes || echo no)" "yes"
+
 # --- 3. gitw.sh guards ------------------------------------------------------
 
 REPOA="$WORK/repo"

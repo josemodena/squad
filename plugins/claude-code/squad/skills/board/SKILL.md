@@ -57,7 +57,7 @@ owner must be ones this project has; `squad.sh settings` lists them.
   never infer permission from quota policy or infer completion from issue closure.
 - Quota readings are comments on the sprint issue, never commits.
 
-Use `squad.sh ready` for eligibility with exclusion reasons, `field ISSUE NAME VALUE` for typed metadata, and `dependency list|add|remove ISSUE [PREREQUISITE]` for native prerequisites. Responsible role is distinct from GitHub account Assignees. Needed by and Forecast finish have different meanings.
+Use `squad.sh ready` for eligibility with exclusion reasons, `field ISSUE NAME VALUE` for typed metadata, and `dependency list|add|remove ISSUE [PREREQUISITE]` for native prerequisites. Status is the state of a piece; Stage and Responsible role exist only with `job_runtime: on`. Needed by and Forecast finish have different meanings.
 
 Before board migration or recovery, use `board-backup.sh snapshot` and retain the
 printed path. Option IDs carry item identity: never rebuild an existing option
