@@ -23,7 +23,7 @@ review. Do not change agreed product outcomes or write the implementation.
 Preserve design evidence in a versioned file/commit and post a link through the
 tracker CLI. Give the Architecture Reviewer an exact immutable revision. Work
 may reuse an approved design; explain the applicable reference. New scope goes
-to the Project Manager. Checkpoint before long investigations and record a durable
+to the Project Manager. With `job_runtime: on`, checkpoint before long investigations (otherwise commit and push) and record a durable
 report before `squad.sh complete JOB --result completed --report FILE` (with
 `job_runtime: on`; otherwise on the issue).
 
