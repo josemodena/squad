@@ -191,32 +191,46 @@ cmd_doctor() {
   warn_dirty_tree
 }
 
+# Each piece gets its own worktree under the scratch root, branched from
+# origin/main. The checkout start runs in is never switched, so a main
+# checkout stays on main and anything unsaved in it stays where it is.
+worktree_root() {
+  squad_expand_home "${SQUAD_WORKTREE_ROOT:-$SQUAD_SCRATCH_ROOT/worktrees}"
+}
+
+worktree_of_branch() {
+  git worktree list --porcelain | awk -v want="branch refs/heads/$1" '
+    /^worktree /{ path = substr($0, 10) }
+    $0 == want { print path; exit }'
+}
+
 cmd_start() {
-  local branch
+  local branch path existing
   branch="$(branch_name "$@")"
   clear_stale_lock
   require_remote_shape
   require_remote_access
   git fetch origin --prune
+  path="$(worktree_root)/$branch"
 
-  if [ -z "$(git status --porcelain)" ]; then
-    git checkout main
-    git pull --ff-only
-  elif [ "$(current_branch)" != "main" ]; then
-    die "Working tree is dirty on $(current_branch). Save it before starting another piece."
+  existing="$(worktree_of_branch "$branch")"
+  if [ -n "$existing" ]; then
+    say "$branch is already checked out at $existing"
+    path="$existing"
+  elif git show-ref --verify --quiet "refs/heads/$branch"; then
+    mkdir -p "$(dirname "$path")"
+    git worktree add "$path" "$branch"
+  elif git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    mkdir -p "$(dirname "$path")"
+    git worktree add --track -b "$branch" "$path" "origin/$branch"
   else
-    say "Carrying the reviewed changes from main onto $branch"
+    git show-ref --verify --quiet refs/remotes/origin/main \
+      || die "origin/main is missing after the fetch. Check the remote."
+    mkdir -p "$(dirname "$path")"
+    git worktree add --no-track -b "$branch" "$path" origin/main
   fi
-
-  if git show-ref --verify --quiet "refs/heads/$branch"; then
-    git checkout "$branch"
-    if git rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
-      git pull --ff-only
-    fi
-  else
-    git checkout -b "$branch"
-  fi
-  git status --short
+  git -C "$path" status --short --branch
+  printf 'worktree: %s\nWork there: cd %s\n' "$path" "$path"
 }
 
 commit_with_message() {

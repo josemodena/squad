@@ -16,7 +16,9 @@ All commands below are `bash ${CLAUDE_PLUGIN_ROOT}/scripts/<command>` in the
 configured project. Read `AGENTS.md` and the harness settings first.
 
 Read the issue, approved design and recovery checkpoint. Use `gitw.sh doctor`,
-`gitw.sh start piece ISSUE SLUG` and an isolated worktree. Preserve concurrent work.
+`gitw.sh start piece ISSUE SLUG`, which creates the piece's worktree under the scratch
+root (it prints the path) and leaves the main checkout alone; work only there.
+Preserve concurrent work.
 
 Follow red → green → refactor: first add a meaningful test exposing the required
 behaviour and record its expected failure, implement the smallest change that
