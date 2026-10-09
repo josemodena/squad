@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.6.1 — local build; public release after review
+
+- `gitw.sh start` creates each piece's worktree under `<scratch_root>/worktrees`
+  (or `worktree_root`) from `origin/main` and never switches the checkout it runs
+  in. A second start of the same piece reuses its worktree.
+- `housekeeping.sh` prunes the Docker build cache and anonymous dangling volumes
+  (named volumes are listed and kept), makes read-only scratch trees writable
+  before deleting them, reports a failed delete and carries on, exiting 1.
+  `--skip-docker` leaves Docker alone.
+- `claude-quota` and `codex-quota` print the same verdict when run as
+  `bash <path>`, as the plan and retro skills call them.
+- Claude Code: the PreCompact hook declares `onFailure: "block"`, so a hand-over
+  hook that cannot start or times out blocks compaction; the warn-only Stop hook
+  stays fail-open. The PM passes the Agent tool's `effort` when a role sets one.
+  Development baseline Claude Code 2.1.295.
+
 ## 0.6.0 — 2026-09-30
 
 - Replace the model-backed Administrator with one main Project Manager session
