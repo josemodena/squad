@@ -239,6 +239,15 @@ cmd_settings() {
     "$SQUAD_CONDUCTOR_TAB" "$SQUAD_CONDUCTOR_SESSION" "$SQUAD_CONDUCTOR_COMMAND"
 }
 
+# The piece template's body without its front matter: Why, What, How.
+piece_body() {
+  local template="$SCRIPT_DIR/../templates/piece.md"
+  [ -r "$template" ] || { printf 'To be written.'; return 0; }
+  awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { fm = 0; next } !fm' "$template" \
+    | sed -e "s/{{DECIDER}}/$(printf '%s' "${SQUAD_DECIDER:-the Decider}" | sed -e 's/[\/&]/\\&/g')/g" \
+    | sed -e '/./,$!d'
+}
+
 cmd_issue() {
   local title="${1:-}"
   [ -n "$title" ] || usage
@@ -284,8 +293,13 @@ cmd_issue() {
   if [ -n "$body_file" ]; then
     args+=(--body-file "$body_file")
   else
-    args+=(--body "${body:-To be written.}")
+    args+=(--body "${body:-$(piece_body)}")
   fi
+
+  # The rate budget first, as every board write checks it: a recent limit or a
+  # low budget stops here, before an issue exists without its card.
+  bash "$SCRIPT_DIR/board-backup.sh" budget --writes 8 >/dev/null \
+    || squad_die "No issue was created: the GitHub rate budget is low or deferred. Try again later."
 
   local url number item_id
   url="$(gh "${args[@]}")"
@@ -470,29 +484,44 @@ cmd_verdict() {
 # The merge after a passed review, in one call: check the verdict, record the
 # pass when fixes followed it, finish, move every closed issue to Done, clear
 # the in-flight lines and post the close-out with the Implementer's cost line.
+# Once GitHub has merged, every later step runs even when one fails; the
+# failures are listed at the end and the command exits 1.
 cmd_merge() {
   local pr="${1:-}" issue="${2:-}" check closes n cost
+  local -a failed=()
   require_issue_number "$pr"
   require_issue_number "$issue"
   check="$(bash "$SCRIPT_DIR/runtime.sh" merge-check "$pr" --apply 2>&1)" \
     || squad_die "merge refused: $(printf '%s' "$check" | jq -r '.error // .' 2>/dev/null || printf '%s' "$check")"
-  bash "$SCRIPT_DIR/gitw.sh" finish "$pr" "$issue"
+  if ! bash "$SCRIPT_DIR/gitw.sh" finish "$pr" "$issue"; then
+    [ "$(gh api "repos/$SQUAD_REPOSITORY/pulls/$pr" --jq '.merged' 2>/dev/null || true)" = true ] \
+      || squad_die "finish did not merge PR #$pr; nothing was closed out."
+    failed+=("gitw.sh finish failed after the merge; see its message above")
+  fi
   closes="$(printf '%s' "$check" | jq -r --argjson i "$issue" '[.closes[] | select(. != $i)] | .[]')"
   for n in $closes; do
     pause_write
-    cmd_place "$n" --status Done || printf 'warning: #%s did not move to Done.\n' "$n" >&2
+    # A subshell, so a refusal inside cmd_place cannot end the close-out.
+    ( cmd_place "$n" --status Done ) || failed+=("#$n did not move to Done: run squad.sh move $n Done")
   done
   for n in "$issue" $closes; do
     pause_write
     bash "$SCRIPT_DIR/runtime.sh" in-flight "$n" --clear >/dev/null \
-      || printf 'warning: the in-flight line on #%s was not cleared.\n' "$n" >&2
+      || failed+=("the in-flight line on #$n was not cleared")
   done
-  cost="$(bash "$SCRIPT_DIR/runtime.sh" cost-line "$issue" $closes | jq -r '. // "No cost line was found in the Implementer'"'"'s report."')"
+  cost="$(bash "$SCRIPT_DIR/runtime.sh" cost-line "$issue" $closes | jq -r '. // empty' 2>/dev/null || true)"
+  [ -n "$cost" ] || cost="No cost line was found in the Implementer's report."
   pause_write
   gh issue comment "$issue" --repo "$SQUAD_REPOSITORY" --body "$(printf 'Merged to main (PR #%s, head `%s`)%s. %s\n' \
     "$pr" "$(printf '%s' "$check" | jq -r '.head[0:7]')" \
-    "$(printf '%s' "$closes" | awk 'NF{printf "%s#%s", (c++ ? ", " : ", closing "), $1}')" "$cost")" >/dev/null
+    "$(printf '%s' "$closes" | awk 'NF{printf "%s#%s", (c++ ? ", " : ", closing "), $1}')" "$cost")" >/dev/null \
+    || failed+=("the close-out comment on #$issue was not posted")
   printf 'PR #%s merged; #%s%s closed out.\n' "$pr" "$issue" "$(printf '%s' "$closes" | awk 'NF{printf " #%s", $1}')"
+  if [ "${#failed[@]}" -gt 0 ]; then
+    printf 'The close-out is incomplete:\n' >&2
+    printf -- '- %s\n' "${failed[@]}" >&2
+    exit 1
+  fi
 }
 
 cmd_needed_by() {

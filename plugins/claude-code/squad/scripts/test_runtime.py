@@ -204,6 +204,20 @@ class RuntimeTest(unittest.TestCase):
             return []
         with patch.object(sys,'argv',['runtime','review-record','1','--head','exact','--verdict','fixes-required','--file',str(self.report)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'gh',side_effect=gh),patch.object(r,'run',return_value=''),contextlib.redirect_stdout(io.StringIO()):r.main()
         self.assertIn(('api','repos/x/y/issues/1/labels/review%3Apassed','-X','DELETE'),calls)
+    def test_review_record_writes_the_verdict_line_merge_reads(self):
+        import mechanics as m
+        head='c'*40;posted=[]
+        def gh(*args):
+            if args[0]=='pr' and args[-1]=='headRefOid,labels':return {'headRefOid':head,'labels':[]}
+            if args[0]=='pr':return {'comments':[]}
+            return []
+        def run(*args,**kw):
+            if 'comment' in args:posted.append(Path(args[args.index('--body-file')+1]).read_text())
+            return ''
+        for verdict,words in (('pass','merge'),('fixes-required','merge after named fixes'),('do-not-merge','do not merge')):
+            posted.clear()
+            with patch.object(sys,'argv',['runtime','review-record','1','--head',head,'--verdict',verdict,'--file',str(self.report)]),patch.object(r,'settings',return_value=self.config),patch.object(r,'gh',side_effect=gh),patch.object(r,'run',side_effect=run),contextlib.redirect_stdout(io.StringIO()):r.main()
+            self.assertEqual(m.last_review(posted),{'verdict':words,'reviewed':head,'index':0})
     def test_pm_cannot_consume_an_edited_reply_at_same_url(self):
         self.config['project_manager_model']='astra';self.blocker()
         with r.transaction(self.config) as state:state['pm_reply_pending']={'1':{'url':'reply','event_id':'revision-1'}}

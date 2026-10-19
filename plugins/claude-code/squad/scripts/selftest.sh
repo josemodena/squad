@@ -694,7 +694,7 @@ check_absent   "issue: and no issue is created" "$(cat "$FAKE_GH_LOG")" "issue c
 : > "$FAKE_GH_LOG"
 FAKE_GH_GRAPHQL="$WORK/project.json" bash "$SCRIPTS/squad.sh" issue "A title" --track Alpha --owner "A Person" >/dev/null 2>&1
 check_equal    "issue: with no body it writes the piece template's three headings in order" \
-  "$(grep -o '^## [A-Za-z]*' "$FAKE_GH_LOG" | tr '\n' ' ')" "## Why ## What ## How "
+  "$(grep -o '## [A-Za-z]*' "$FAKE_GH_LOG" | tr '\n' ' ')" "## Why ## What ## How "
 
 # --- 7c. housekeeping and the release review --------------------------------
 
