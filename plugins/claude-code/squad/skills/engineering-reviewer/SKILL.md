@@ -21,12 +21,31 @@ from freshly fetched main and the PR head. Keep logs outside it. Run acceptance
 checks yourself and add a useful boundary or failure check not reported by the
 Engineer. Inspect the code and red/green evidence, not just test output.
 
+Give one review, scoped to the diff and the acceptance criteria, as the
+[review cycle](../../docs/roles/review-cycle.md) sets out. Class every finding
+**blocking** or **note**; notes do not block, and a note worth doing becomes a
+follow-up issue with Why, What and How. Refuse a piece that passes only on a
+fixture the Engineer wrote. Run at most two full test suites at once.
+
 Never edit the source branch, push or merge it. The reviewed head is the head
 returned by review-prepare; do not substitute the latest SHA after testing.
 Write verdict/evidence to a report file, then use
 `squad.sh review-record PR --head SHA --verdict pass --file REPORT`
 (or fixes-required / do-not-merge). The CLI rejects a changed head, records the
-marker and label, and does not emit a normal conductor event. Finish the named
+marker and label, and does not emit a normal conductor event. It writes the
+verdict line in the only form `squad.sh merge` reads. When you post the report
+yourself, its verdict line is exactly one of these, with the full reviewed head
+before any other commit hash, and a pass also carries the marker line:
+
+```text
+Verdict: merge. Reviewed head <sha>.
+Verdict: merge after named fixes. Reviewed head <sha>.
+Verdict: do not merge. Reviewed head <sha>.
+<!-- squad-review-passed:<sha> -->
+```
+
+A named fix is not reviewed again: the merger checks its diff, unless the fix
+changes behaviour beyond the findings. Finish the named
 job with its durable report. The Project Manager handles the native completion.
 
 With `job_runtime: on`, checkpoint the named job before long checks and use `squad.sh run JOB -- COMMAND ARGS` so process identity, logs and exit status survive a lost model turn; otherwise write each long check's log and exit status to a file in the scratch directory.

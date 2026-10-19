@@ -2,7 +2,33 @@
 
 ## Unreleased
 
-## 0.6.2 — local build; public release with 0.7.0
+## 0.7.0 — 2026-10-19
+
+The public release of 0.6.1 and 0.6.2, with the review cycle as the rule.
+
+- The review cycle is the rule, in a new shared document
+  (`docs/roles/review-cycle.md`) that the engineer, engineering-reviewer,
+  project-manager, plan and retro skills follow: machine gates before any
+  Reviewer, pull requests of about 400 non-test lines, one review scoped to the
+  diff and the acceptance criteria with each finding blocking or note, notes do
+  not block, a named fix checked by the merger with no second review unless
+  behaviour changes, fixtures never written by the Engineer, two full suites at
+  once at most, one cold run mid-sprint.
+- The piece template has three headings: Why, What, How. The Why says, in
+  plain words, the reason, the consequence of not doing it and the goal it
+  serves; the acceptance test sits under How. `squad.sh issue` writes this body
+  when none is given, and every follow-up issue carries all three.
+- `review-record` writes the verdict line `squad.sh merge` reads
+  (`Verdict: merge`, `merge after named fixes` or `do not merge`, then the
+  reviewed head); before, its `Verdict: pass` line was refused by `merge`. The
+  reviewer skill gives the exact form and the pass marker.
+- `squad.sh merge` finishes the close-out when a step fails after GitHub has
+  merged, such as one card move, and lists the failures at the end (exit 1).
+- `squad.sh issue` checks the GitHub rate budget before it creates anything,
+  as the board writes do (`board-backup.sh budget`); the runtime's
+  issue-create path checks it again before adding the card.
+
+## 0.6.2 — local build; released in 0.7.0
 
 - `claude-quota` reads both meters: all models, and every per-model weekly
   meter in the status line's usage file (`fableUsage` today, setting
@@ -23,7 +49,7 @@
   the in-flight lines from the board and carries the last hand-over's next
   actions and waits instead of claiming none. Idle compaction stays on.
 
-## 0.6.1 — local build; public release after review
+## 0.6.1 — local build; released in 0.7.0
 
 - `gitw.sh start` creates each piece's worktree under `<scratch_root>/worktrees`
   (or `worktree_root`) from `origin/main` and never switches the checkout it runs

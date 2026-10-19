@@ -56,7 +56,9 @@ typed from memory.
 3. **What closed**, with issue numbers.
 4. **What slipped and why**, with the honest reason for each. No rounding up.
 5. **Rules challenged.** Each rule, a verdict of keep, change or drop, and the
-   reason. This is where rules change; a piece never changes a rule on its own.
+   reason, including the [review cycle](../../docs/roles/review-cycle.md) and
+   what the sprint's cold run found. This is where rules change; a piece never
+   changes a rule on its own.
 6. **Housekeeping**, with the figures the script printed.
 7. **The harness releases** since the version last reviewed, each classified
    adopt or ignore in one line. A cheap model does the classifying; it is
@@ -66,7 +68,8 @@ typed from memory.
 ## Writing it up
 
 Create the retrospective issue from the retrospective template, then turn every
-action into an issue in the next sprint and list the numbers. An action with no
+action into an issue in the next sprint, with Why, What and How like any piece,
+and list the numbers. An action with no
 issue number is an action that will not happen.
 
 ```bash
