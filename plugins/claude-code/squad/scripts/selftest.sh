@@ -386,6 +386,15 @@ for mode in meeting plain; do
   check_contains "stop hook ($mode): it is handed its whole input" "$out" "rc=0"
 done
 
+# A meeting session records its own session id from the hook's input.
+mkdir -p "$WORK/meeting-rec"
+printf '{"id": "m-1", "kind": "planning"}' > "$WORK/meeting-rec/planning.json"
+(cd "$WORK" && printf '{"session_id": "12345678-1234-4234-8234-123456789abc"}' \
+  | SQUAD_MEETING_ID=m-1 SQUAD_MEETING_RECORD="$WORK/meeting-rec/planning.json" \
+    bash "$ROOT/hooks/scripts/session-start.sh" >/dev/null 2>&1)
+check_contains "session start: a meeting session records its session id" \
+  "$(cat "$WORK/meeting-rec/planning.json")" "12345678-1234-4234-8234-123456789abc"
+
 out="$(cd "$REPOA" && printf '{}' | bash "$ROOT/hooks/scripts/stop-dirty-tree.sh" 2>&1)"
 check_equal "stop hook: a clean tree says nothing" "$out" ""
 

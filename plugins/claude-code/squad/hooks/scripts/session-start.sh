@@ -13,14 +13,15 @@ set -uo pipefail
 
 # Read the hook's input first, on every path. Since Claude Code 2.1.299 an
 # action the harness cannot hand to a hook is refused, not let through.
-[ -t 0 ] || timeout 5 cat >/dev/null 2>&1 || true
+hook_input=""
+[ -t 0 ] || hook_input="$(timeout 5 cat 2>/dev/null || true)"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SCRIPTS="$PLUGIN_ROOT/scripts"
 
 # Direct meetings have their own identity and must not masquerade as the Administrator.
 if [ -n "${SQUAD_MEETING_ID:-}" ]; then
-  python3 "$SCRIPTS/meeting.py" _hook
+  printf '%s' "$hook_input" | python3 "$SCRIPTS/meeting.py" _hook
   exit $?
 fi
 
