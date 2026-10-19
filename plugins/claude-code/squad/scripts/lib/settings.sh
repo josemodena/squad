@@ -318,3 +318,15 @@ squad_handover_section() {
     inside { print }
   ' | sed -e '/./,$!d' | sed -e ':a' -e '/^[[:space:]]*$/{$d;N;ba' -e '}'
 }
+
+# The quota reader: the plugin's own copy first, because it reads every meter,
+# then the configured command on PATH.
+squad_quota_bin() {
+  local dir
+  dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [ "${SQUAD_QUOTA_COMMAND#*/}" = "$SQUAD_QUOTA_COMMAND" ] && [ -x "$dir/$SQUAD_QUOTA_COMMAND" ]; then
+    printf '%s\n' "$dir/$SQUAD_QUOTA_COMMAND"
+  else
+    command -v "$SQUAD_QUOTA_COMMAND" 2>/dev/null || true
+  fi
+}

@@ -354,6 +354,15 @@ out="$(SQUAD_SETTINGS="$WORK/quota-two.md" SQUAD_USAGE_FILE="$WORK/usage-two.jso
 check_contains "quota: a meter above 100 is the provider limit" "$out" '"reason": "provider-limit"'
 check_contains "quota: and is kept as read"                     "$out" '"used": 104.0'
 
+# The sprint quota note records both meters, from the plugin's own reader.
+printf '#!/usr/bin/env bash\necho "usage summary"\n' > "$WORK/bin/claude-usage"; chmod +x "$WORK/bin/claude-usage"
+: > "$FAKE_GH_LOG"
+SQUAD_USAGE_FILE="$WORK/usage-two.json" SQUAD_MODEL_USAGE_FILE="$WORK/model-usage.json" \
+  bash "$SCRIPTS/squad.sh" quota-note 7 >/dev/null 2>&1
+out="$(cat "$FAKE_GH_LOG")"
+check_contains "quota note: records the all-models meter" "$out" "all models: weekly 70.0% used"
+check_contains "quota note: records the Fable meter"      "$out" "Fable: weekly 104.0% used"
+
 # --- 7. the hooks -----------------------------------------------------------
 
 out="$(cd "$WORK" && SQUAD_SETTINGS="" CLAUDE_PROJECT_DIR="$WORK/none" bash "$ROOT/hooks/scripts/session-start.sh" 2>&1)"

@@ -197,12 +197,12 @@ fi
 
 # --- 4. the quota -----------------------------------------------------------
 
-# The quota command prints its verdict as the first word of its first line.
+# The quota command prints its verdict as the first word of its first line,
+# taken from the tighter of its meters.
 quota_verdict() {
   local bin out
   if [ -n "${SQUAD_CONDUCTOR_QUOTA:-}" ]; then printf '%s\n' "$SQUAD_CONDUCTOR_QUOTA"; return 0; fi
-  bin="$(command -v "$SQUAD_QUOTA_COMMAND" 2>/dev/null || true)"
-  [ -n "$bin" ] || [ ! -x "$SCRIPT_DIR/$SQUAD_QUOTA_COMMAND" ] || bin="$SCRIPT_DIR/$SQUAD_QUOTA_COMMAND"
+  bin="$(squad_quota_bin)"
   [ -n "$bin" ] || { printf 'unreadable\n'; return 0; }
   out="$("$bin" 2>&1)" || true
   printf '%s\n' "$out" | head -1 | awk '{print $1}' | tr -d ':'

@@ -440,9 +440,11 @@ cmd_quota_note() {
   require_issue_number "$number"
 
   local quota_bin usage_bin
-  quota_bin="$(command -v "$SQUAD_QUOTA_COMMAND" || true)"
+  # The plugin's own reader comes first, as in the runtime and the conductor:
+  # it prints every meter, and an older copy on PATH may print only one.
+  quota_bin="$(squad_quota_bin)"
   usage_bin="$(command -v "$SQUAD_USAGE_COMMAND" || true)"
-  [ -n "$quota_bin" ] || squad_die "The quota command '$SQUAD_QUOTA_COMMAND' is not on PATH."
+  [ -n "$quota_bin" ] || squad_die "The quota command '$SQUAD_QUOTA_COMMAND' is neither in the plugin nor on PATH."
   [ -n "$usage_bin" ] || squad_die "The usage command '$SQUAD_USAGE_COMMAND' is not on PATH."
 
   local stamp quota_out usage_out body
