@@ -27,6 +27,8 @@ The public release of 0.6.1 and 0.6.2, with the review cycle as the rule.
 - `squad.sh issue` checks the GitHub rate budget before it creates anything,
   as the board writes do (`board-backup.sh budget`); the runtime's
   issue-create path checks it again before adding the card.
+- `selftest.sh` runs clean in an installed or archived plugin: the manifest
+  check needs the checkout's marketplace file and is skipped without it.
 
 ## 0.6.2 — local build; released in 0.7.0
 

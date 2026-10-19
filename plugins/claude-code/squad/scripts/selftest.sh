@@ -846,6 +846,11 @@ fi
 
 # --- 9. the two manifests agree on a version ---------------------------------
 
+# An installed or archived plugin carries no marketplace file; only a checkout does.
+marketplace_file="$ROOT/../../../.claude-plugin/marketplace.json"
+if [ ! -r "$marketplace_file" ]; then
+  printf 'skip  manifests: no marketplace file beside this copy (an installed or archived plugin)\n'
+else
 plugin_version="$(jq -r '.version // empty' "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
 marketplace_plugin_version="$(jq -r '.plugins[0].version // empty' "$ROOT/../../../.claude-plugin/marketplace.json" 2>/dev/null)"
 marketplace_version="$(jq -r '.version // empty' "$ROOT/../../../.claude-plugin/marketplace.json" 2>/dev/null)"
@@ -857,6 +862,7 @@ else
 fi
 check_equal "manifests: marketplace.json's own version matches the plugin entry" \
   "$marketplace_version" "$marketplace_plugin_version"
+fi
 
 # --- the count --------------------------------------------------------------
 
