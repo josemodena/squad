@@ -472,4 +472,76 @@ class StatusOnlyTest(unittest.TestCase):
         self.item['fields'].pop('Estimate (credits %)')
         self.assertIn('missing-estimate',self.cli('ready')[0]['reasons'])
 
+HEAD='b'*40;REVIEWED='a'*40
+
+class Mechanics(unittest.TestCase):
+    """Merge, verdict and in-flight mechanics against a fake GitHub."""
+    def setUp(self):
+        self.config={'repository':'x/y','project_owner':'x','project_number':'1'}
+        self.pr={'state':'open','head':{'sha':HEAD},'labels':[],'body':'Closes #7\n\nCloses #9'}
+        self.comments=[];self.writes=[];self.compare={'status':'ahead','ahead_by':2}
+        self.issue={'number':7,'body':'The plan.'}
+    def gh(self,*args):
+        endpoint=args[1]
+        if '-X' in args or '-f' in args:
+            self.writes.append(args);return {}
+        if endpoint.endswith('/pulls/5'):return self.pr
+        if '/compare/' in endpoint:return self.compare
+        if endpoint.endswith('/issues/5'):return {'number':5,'pull_request':{}}
+        if endpoint.endswith('/issues/7'):return self.issue
+        raise AssertionError(endpoint)
+    def run_(self,fn,*args):
+        import mechanics as m
+        with patch.object(m,'gh',side_effect=self.gh),patch.object(m,'pages',side_effect=lambda e:[{'body':b} for b in self.comments]):
+            return getattr(m,fn)(self.config,*args)
+    def review(self,verdict,sha=REVIEWED):
+        return '## Review of #5\n\n**Verdict: '+verdict+'.** Reviewed head `'+sha+'`.'
+    def test_merge_refuses_a_pr_with_no_verdict_comment(self):
+        self.comments=['Looks fine to me.']
+        with self.assertRaisesRegex(ValueError,'no Reviewer verdict'):self.run_('merge_check',5,True)
+        self.assertEqual(self.writes,[])
+    def test_merge_refuses_do_not_merge(self):
+        self.comments=[self.review('do not merge',HEAD)]
+        with self.assertRaisesRegex(ValueError,'do not merge'):self.run_('merge_check',5,True)
+    def test_merge_refuses_named_fixes_not_yet_made(self):
+        self.comments=[self.review('merge after named fixes',HEAD)]
+        with self.assertRaisesRegex(ValueError,'fixes'):self.run_('merge_check',5,True)
+    def test_merge_refuses_a_moved_head_no_comment_names(self):
+        self.comments=[self.review('merge')]
+        with self.assertRaisesRegex(ValueError,'moved'):self.run_('merge_check',5,True)
+    def test_merge_refuses_fixes_whose_commits_do_not_follow_the_review(self):
+        self.comments=[self.review('merge after named fixes'),'Named fixes from the review. New head: '+HEAD]
+        self.compare={'status':'diverged','ahead_by':1}
+        with self.assertRaisesRegex(ValueError,'follow'):self.run_('merge_check',5,True)
+    def test_named_fixes_present_pass_with_label_and_marker(self):
+        self.comments=[self.review('merge after named fixes'),'Named fixes from the review. New head: '+HEAD]
+        result=self.run_('merge_check',5,True)
+        self.assertEqual(result['closes'],[7,9]);self.assertEqual(result['fix_commits'],2)
+        posted=' '.join(' '.join(w) for w in self.writes)
+        self.assertIn('labels[]=review:passed',posted);self.assertIn('<!-- squad-review-passed:'+HEAD+' -->',posted)
+    def test_a_passed_review_with_its_marker_needs_no_write(self):
+        self.pr['labels']=[{'name':'review:passed'}]
+        self.comments=['<!-- squad-review-passed:'+HEAD+' -->\n'+self.review('merge',HEAD)]
+        self.assertEqual(self.run_('merge_check',5,True)['verdict'],'merge');self.assertEqual(self.writes,[])
+    def test_verdict_prints_the_last_review_line_and_sha(self):
+        self.comments=[self.review('merge after named fixes'),self.review('merge',HEAD)]
+        self.assertEqual(self.run_('verdict',5)['text'],'merge (head '+HEAD+')')
+    def test_verdict_of_an_issue_is_its_last_report_line(self):
+        self.comments=['**PR #5** (Closes #7). Not merged.\n\n**Cost:** weekly 1% at the start, 2% at the end.','A note.']
+        self.assertEqual(self.run_('verdict',7)['text'],'PR #5 (Closes #7). Not merged. (head '+HEAD+')')
+        self.assertEqual(self.run_('cost_line',[7]),'**Cost:** weekly 1% at the start, 2% at the end.')
+    def test_in_flight_line_is_replaced_then_cleared(self):
+        self.run_('in_flight',7,'Implementer since 10:00 UTC')
+        body=dict(a.split('=',1) for a in self.writes[-1] if a.startswith('body='))['body']
+        self.assertEqual(body,'The plan.\n\n<!-- in-flight --> Implementer since 10:00 UTC')
+        self.issue['body']=body
+        self.run_('in_flight',7,None)
+        self.assertEqual(dict(a.split('=',1) for a in self.writes[-1] if a.startswith('body='))['body'],'The plan.')
+    def test_in_flight_list_reads_the_board(self):
+        import mechanics as m
+        items=[{'number':7,'title':'A piece','body':'x\n<!-- in-flight --> Implementer since 10:00 UTC','fields':{'Status':'In progress'},'archived':False},
+               {'number':8,'title':'Done one','body':'<!-- in-flight --> old','fields':{'Status':'Done'},'archived':False}]
+        with patch.object(m,'board',return_value=items):
+            self.assertEqual(m.in_flight_list(self.config),['- #7 A piece: Implementer since 10:00 UTC'])
+
 if __name__=='__main__': unittest.main()

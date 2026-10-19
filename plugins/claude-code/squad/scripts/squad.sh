@@ -30,6 +30,11 @@ Usage:
   squad.sh move <issue-number> <status>
   squad.sh sprint <issue-number> "<sprint name>"
   squad.sh place <issue-number> [--sprint "<name>"] [--status <status>] [--estimate <n>]
+  squad.sh launch <issue-number> --worktree <path> [--role <role>]
+                  [--sprint "<name>"] [--estimate <n>]
+  squad.sh at-pr <issue-number> <pr-number>
+  squad.sh merge <pr-number> <issue-number>
+  squad.sh verdict <issue-or-pr-number>
   squad.sh needed-by <issue-number> <YYYY-MM-DD>
   squad.sh board [--sprint "<name>"]
   squad.sh sprint-issue
@@ -412,6 +417,84 @@ cmd_place() {
     + (if (.skipped | length) > 0 then ", skipped: \(.skipped | join(", "))" else "" end)'
 }
 
+# A pause between consecutive GitHub writes, so a run of them stays under the
+# secondary rate limit.
+pause_write() { sleep "${SQUAD_WRITE_PAUSE:-3}"; }
+
+# The board upkeep when an agent is launched on a piece: the card's fields in
+# one call and the in-flight line the hand-over reads.
+cmd_launch() {
+  local number="${1:-}"
+  require_issue_number "$number"
+  shift
+  local worktree="" role="Implementer" sprint="" estimate=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --worktree) worktree="${2:-}"; [ -n "$worktree" ] || usage; shift 2 ;;
+      --role)     role="${2:-}"; [ -n "$role" ] || usage; shift 2 ;;
+      --sprint)   sprint="${2:-}"; [ -n "$sprint" ] || usage; shift 2 ;;
+      --estimate) estimate="${2:-}"; [ -n "$estimate" ] || usage; shift 2 ;;
+      *) squad_die "Unknown option '$1'." ;;
+    esac
+  done
+  [ -n "$worktree" ] || squad_die "launch needs --worktree <path>."
+  local -a place=(--status "In progress")
+  [ -z "$sprint" ] || place+=(--sprint "$sprint")
+  [ -z "$estimate" ] || place+=(--estimate "$estimate")
+  cmd_place "$number" "${place[@]}"
+  pause_write
+  bash "$SCRIPT_DIR/runtime.sh" in-flight "$number" \
+    --set "$role since $(date -u '+%Y-%m-%d %H:%M UTC'), worktree $worktree" >/dev/null
+  printf 'issue #%s: in flight, %s in %s\n' "$number" "$role" "$worktree"
+}
+
+# The board upkeep when the pull request opens: In review, and the in-flight
+# line now names the pull request.
+cmd_at_pr() {
+  local number="${1:-}" pr="${2:-}"
+  require_issue_number "$number"
+  require_issue_number "$pr"
+  cmd_place "$number" --status "In review"
+  pause_write
+  bash "$SCRIPT_DIR/runtime.sh" in-flight "$number" \
+    --set "PR #$pr open since $(date -u '+%Y-%m-%d %H:%M UTC'); review next" >/dev/null
+  printf 'issue #%s: PR #%s in review\n' "$number" "$pr"
+}
+
+cmd_verdict() {
+  local number="${1:-}"
+  require_issue_number "$number"
+  bash "$SCRIPT_DIR/runtime.sh" verdict "$number" | jq -r '.text'
+}
+
+# The merge after a passed review, in one call: check the verdict, record the
+# pass when fixes followed it, finish, move every closed issue to Done, clear
+# the in-flight lines and post the close-out with the Implementer's cost line.
+cmd_merge() {
+  local pr="${1:-}" issue="${2:-}" check closes n cost
+  require_issue_number "$pr"
+  require_issue_number "$issue"
+  check="$(bash "$SCRIPT_DIR/runtime.sh" merge-check "$pr" --apply 2>&1)" \
+    || squad_die "merge refused: $(printf '%s' "$check" | jq -r '.error // .' 2>/dev/null || printf '%s' "$check")"
+  bash "$SCRIPT_DIR/gitw.sh" finish "$pr" "$issue"
+  closes="$(printf '%s' "$check" | jq -r --argjson i "$issue" '[.closes[] | select(. != $i)] | .[]')"
+  for n in $closes; do
+    pause_write
+    cmd_place "$n" --status Done || printf 'warning: #%s did not move to Done.\n' "$n" >&2
+  done
+  for n in "$issue" $closes; do
+    pause_write
+    bash "$SCRIPT_DIR/runtime.sh" in-flight "$n" --clear >/dev/null \
+      || printf 'warning: the in-flight line on #%s was not cleared.\n' "$n" >&2
+  done
+  cost="$(bash "$SCRIPT_DIR/runtime.sh" cost-line "$issue" $closes | jq -r '. // "No cost line was found in the Implementer'"'"'s report."')"
+  pause_write
+  gh issue comment "$issue" --repo "$SQUAD_REPOSITORY" --body "$(printf 'Merged to main (PR #%s, head `%s`)%s. %s\n' \
+    "$pr" "$(printf '%s' "$check" | jq -r '.head[0:7]')" \
+    "$(printf '%s' "$closes" | awk 'NF{printf "%s#%s", (c++ ? ", " : ", closing "), $1}')" "$cost")" >/dev/null
+  printf 'PR #%s merged; #%s%s closed out.\n' "$pr" "$issue" "$(printf '%s' "$closes" | awk 'NF{printf " #%s", $1}')"
+}
+
 cmd_needed_by() {
   local number="${1:-}" date="${2:-}"
   [ -n "$number" ] && [ -n "$date" ] || usage
@@ -519,6 +602,10 @@ case "${1:-}" in
   move)       shift; cmd_move "$@" ;;
   sprint)     shift; cmd_sprint "$@" ;;
   place)      shift; cmd_place "$@" ;;
+  launch)     shift; cmd_launch "$@" ;;
+  at-pr)      shift; cmd_at_pr "$@" ;;
+  merge)      shift; cmd_merge "$@" ;;
+  verdict)    shift; cmd_verdict "$@" ;;
   needed-by)  shift; cmd_needed_by "$@" ;;
   board)      shift; cmd_board "$@" ;;
   sprint-issue) shift; cmd_sprint_issue "$@" ;;

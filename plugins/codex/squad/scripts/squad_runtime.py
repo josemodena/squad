@@ -465,6 +465,11 @@ def parser():
         if name in ('ready','next','board-read'): command.add_argument('--fresh', action='store_true')
     s = sub.add_parser('api-status')
     s = sub.add_parser('fields'); s.add_argument('issue',type=int); s.add_argument('--file',required=True); s.add_argument('--optional',action='append',default=[])
+    s = sub.add_parser('verdict'); s.add_argument('number',type=int)
+    s = sub.add_parser('merge-check'); s.add_argument('pr',type=int); s.add_argument('--apply',action='store_true')
+    s = sub.add_parser('cost-line'); s.add_argument('issues',type=int,nargs='+')
+    s = sub.add_parser('in-flight'); s.add_argument('issue',type=int); g=s.add_mutually_exclusive_group(required=True); g.add_argument('--set'); g.add_argument('--clear',action='store_true')
+    sub.add_parser('in-flight-list')
     s = sub.add_parser('pm-check'); s.add_argument('--session',required=True)
     s = sub.add_parser('context'); s.add_argument('role', choices=ROLES); s.add_argument('--issue',type=int)
     s = sub.add_parser('inbox'); s.add_argument('action',choices=('poll','status','watch','unwatch')); s.add_argument('--issue',type=int); s.add_argument('--since'); s.add_argument('--force',action='store_true')
@@ -644,6 +649,11 @@ def main():
         elif args.verdict!='pass' and 'review:passed' in labels:
             gh('api',endpoint+'/review%3Apassed','-X','DELETE')
         result = {'pr':args.pr,'head':args.head,'verdict':args.verdict}
+    elif cmd in ('verdict','merge-check','cost-line','in-flight','in-flight-list'):
+        import mechanics as m
+        result=(m.verdict(config,args.number) if cmd=='verdict' else m.merge_check(config,args.pr,args.apply) if cmd=='merge-check'
+                else m.cost_line(config,args.issues) if cmd=='cost-line' else m.in_flight_list(config) if cmd=='in-flight-list'
+                else m.in_flight(config,args.issue,None if args.clear else args.set))
     elif cmd == 'field':
         result = field_set(config, args.issue, args.name, args.value)
     elif cmd == 'dependency':

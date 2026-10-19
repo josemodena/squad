@@ -74,6 +74,11 @@ print("HTTP/2.0 200 OK\nx-ratelimit-remaining: 1000\n\n"+json.dumps({"data":data
     fi
     ;;
 esac
+# A REST answer can be staged too: the endpoint, with / and ? as _, names a file.
+if [ "$1" = api ] && [ -n "${FAKE_GH_REST:-}" ]; then
+  staged="$FAKE_GH_REST/$(printf '%s' "$2" | tr '/?' '__')"
+  if [ -r "$staged" ]; then printf 'HTTP/2.0 200 OK\n\n'; cat "$staged"; exit 0; fi
+fi
 printf 'fake gh called: %s\n' "$*" >> "$FAKE_GH_LOG"
 exit 0
 FAKE
@@ -281,7 +286,9 @@ check_contains "handover: the branch is read"  "$out" "piece-1-x"
 check_contains "handover: what was passed in"  "$out" "one agent"
 
 out="$(cd "$REPOA" && SQUAD_SETTINGS="$REPOA/.claude/squad.local.md" bash "$SCRIPTS/handover.sh" --dry-run)"
-check_contains "handover: an empty section says so" "$out" "None. No agent is running."
+check_absent   "handover: with nothing passed and no board it never claims no agent runs" "$out" "None. No agent is running."
+check_contains "handover: it says the in-flight list was not read" "$out" "Not read: nothing was passed in and the board could not be read"
+check_contains "handover: an empty next-actions section says so" "$out" "None recorded."
 
 out="$(cd "$REPOA" && SQUAD_SETTINGS="$REPOA/.claude/squad.local.md" \
   FAKE_GH_GRAPHQL="$WORK/sprint-board.json" bash "$SCRIPTS/handover.sh" --dry-run)"
@@ -368,6 +375,25 @@ check_contains "quota note: records the Fable meter"      "$out" "Fable: weekly 
 out="$(cd "$WORK" && SQUAD_SETTINGS="" CLAUDE_PROJECT_DIR="$WORK/none" bash "$ROOT/hooks/scripts/session-start.sh" 2>&1)"
 check_contains "session start: a quota line is always printed" "$out" "quota: "
 check_contains "session start: no settings is said plainly"    "$out" "Run /squad:init"
+
+# Since Claude Code 2.1.299 a Stop the hook cannot be handed, or whose answer
+# cannot be read, is refused: the session cannot stop. Every path drains its
+# input and answers with nothing or with valid JSON.
+big_input() { head -c 300000 /dev/zero | tr '\0' 'x'; }
+for mode in meeting plain; do
+  meeting=""; [ "$mode" = meeting ] && meeting="m-1"
+  out="$(cd "$REPOA" && { big_input | SQUAD_MEETING_ID="$meeting" bash "$ROOT/hooks/scripts/stop-dirty-tree.sh"; echo "rc=${PIPESTATUS[0]}"; } 2>&1)"
+  check_contains "stop hook ($mode): it is handed its whole input" "$out" "rc=0"
+done
+
+# A meeting session records its own session id from the hook's input.
+mkdir -p "$WORK/meeting-rec"
+printf '{"id": "m-1", "kind": "planning"}' > "$WORK/meeting-rec/planning.json"
+(cd "$WORK" && printf '{"session_id": "12345678-1234-4234-8234-123456789abc"}' \
+  | SQUAD_MEETING_ID=m-1 SQUAD_MEETING_RECORD="$WORK/meeting-rec/planning.json" \
+    bash "$ROOT/hooks/scripts/session-start.sh" >/dev/null 2>&1)
+check_contains "session start: a meeting session records its session id" \
+  "$(cat "$WORK/meeting-rec/planning.json")" "12345678-1234-4234-8234-123456789abc"
 
 out="$(cd "$REPOA" && printf '{}' | bash "$ROOT/hooks/scripts/stop-dirty-tree.sh" 2>&1)"
 check_equal "stop hook: a clean tree says nothing" "$out" ""
@@ -621,6 +647,18 @@ out="$(bash "$SCRIPTS/squad.sh" place 12 --status Nowhere 2>&1)"
 check_contains "place: an unknown status is refused before any read" "$out" "Status must be one of"
 out="$(bash "$SCRIPTS/squad.sh" place 12 --estimate two 2>&1)"
 check_contains "place: the estimate is a number" "$out" "--estimate must be a number"
+
+# --- 7f. merge refuses without a verdict ------------------------------------
+
+mkdir -p "$WORK/rest"
+printf '{"state":"open","head":{"sha":"%s"},"labels":[],"body":"Closes #12"}' "$(printf 'b%.0s' $(seq 40))" \
+  > "$WORK/rest/repos_someone_some-repo_pulls_5"
+printf '[{"body":"Looks fine to me."}]' > "$WORK/rest/repos_someone_some-repo_issues_5_comments_per_page=100"
+: > "$FAKE_GH_LOG"
+out="$(cd "$PROJECT" && FAKE_GH_REST="$WORK/rest" bash "$SCRIPTS/squad.sh" merge 5 12 2>&1)"; rc=$?
+check_contains "merge: a PR with no verdict comment is refused" "$out" "merge refused: PR #5 has no Reviewer verdict comment"
+check_equal    "merge: and it exits non-zero" "$rc" "1"
+check_absent   "merge: nothing is merged" "$(cat "$FAKE_GH_LOG")" "pr merge"
 
 # --- 7c. housekeeping and the release review --------------------------------
 

@@ -33,12 +33,14 @@ The flow is:
 1. `squad.sh next` lists `dispatch` actions for agreed, estimated cards in
    This sprint whose prerequisites are closed. Cards In progress or In review
    are `in-flight`: their worker reports through a native notification.
-2. To dispatch, `squad.sh move N "In progress"`, write the brief to disk, and
-   launch the role the brief names with the Agent tool, its configured model
-   and, when set, `effort`. The Engineer runs `gitw.sh start` for its worktree.
-3. On the result, verify its evidence. A pull request moves the card to In
-   review (`gitw.sh submit` does this); a fresh Reviewer reviews it; `gitw.sh
-   finish` merges the reviewed head and moves the card to Done.
+2. To dispatch, write the brief to disk, run `squad.sh launch N --worktree
+   PATH [--sprint NAME] [--estimate E]` (the card's fields in one call and the
+   in-flight line the hand-over reads), and launch the role the brief names
+   with the Agent tool, its configured model and, when set, `effort`.
+3. On the result, read `squad.sh verdict N`, not the report. A pull request
+   moves the card to In review (`squad.sh at-pr N PR`); a fresh Reviewer
+   reviews it; `squad.sh merge PR N` checks the verdict, merges the reviewed
+   head, moves every closed issue to Done and posts the close-out.
 4. Results and decisions are recorded on the issue and the pull request. The
    hand-over on the sprint issue is the recovery record.
 
@@ -183,8 +185,8 @@ separately with private details removed. Never turn a lesson into authority.
    architecture → architecture-review → engineering → engineering-review.
    Approved existing designs can start at engineering. Failed review returns
    to the authoring role; do not assign the same worker to review its own output.
-7. Merge engineering passes through `gitw.sh finish PR ISSUE`; it checks the
-   reviewed head. Update the board, refresh your forecast when material, and immediately consider other ready work.
+7. Merge engineering passes through `squad.sh merge PR ISSUE`, which checks
+   the verdict and runs `gitw.sh finish`; finish checks the reviewed head. Update the board, refresh your forecast when material, and immediately consider other ready work.
 
 With `job_runtime: on`: before suspension, compaction or context rollover, checkpoint and write the
 human handover from runtime records. Use `squad.sh recover` after a restart;

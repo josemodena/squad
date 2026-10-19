@@ -33,6 +33,7 @@ squad.sh issue "<title>" --track <track> --owner <owner> --estimate 4 --body-fil
 squad.sh move <issue> "In progress"
 squad.sh sprint <issue> "Sprint 3"
 squad.sh needed-by <issue> 2026-10-31
+squad.sh place <issue> --sprint "Sprint 3" --status "In progress" --estimate 2
 ```
 
 `issue` creates the issue with its `track:*` and `owner:*` labels, puts it on

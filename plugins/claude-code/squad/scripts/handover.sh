@@ -22,6 +22,9 @@ usage() {
 Usage:
   handover.sh [--issue <number>] [--dry-run]
               [--in-flight "<text>"] [--next "<text>"] [--waits "<text>"]
+
+  Without --in-flight the open cards' in-flight lines are read from the board;
+  without --next or --waits the newest hand-over's sections are carried over.
   handover.sh --latest [--issue <number>]
 
   --dry-run   print the comment instead of posting it
@@ -99,6 +102,30 @@ if [ -z "$issue_number" ]; then
   else
     issue_number="$(squad_current_sprint_issue)"
   fi
+fi
+
+# --- what nobody passed in ---------------------------------------------------
+
+# A hand-over written by a hook (PreCompact, which idle compaction now fires
+# after about 54 idle minutes) passes nothing in. It must not claim that no
+# agent runs when one does, nor wipe the next actions and waits the last
+# hand-over recorded: the newest hand-over is the one the next session reads.
+if [ -z "$in_flight" ]; then
+  if lines="$(timeout 25 bash "$SCRIPT_DIR/runtime.sh" in-flight-list 2>/dev/null)"; then
+    in_flight="$(printf '%s' "$lines" | jq -r '.[]' 2>/dev/null)"
+    [ -n "$in_flight" ] || in_flight="None on the board: no open card carries an in-flight line."
+  else
+    in_flight="Not read: nothing was passed in and the board could not be read. Check the In progress and In review cards before assuming none."
+  fi
+fi
+if [ -z "$next_actions" ] || [ -z "$waits" ]; then
+  previous=""
+  if [ -n "$issue_number" ] && command -v gh >/dev/null 2>&1; then
+    previous="$(timeout 15 gh issue view "$issue_number" --repo "$SQUAD_REPOSITORY" --json comments \
+      --jq "[.comments[] | select(.body | startswith(\"$MARKER\"))] | last | .body // \"\"" 2>/dev/null | sed -e 's/\r$//')" || previous=""
+  fi
+  [ -n "$next_actions" ] || next_actions="$(printf '%s\n' "$previous" | squad_handover_section "$SQUAD_HANDOVER_NEXT_HEADING")"
+  [ -n "$waits" ] || waits="$(printf '%s\n' "$previous" | squad_handover_section "$SQUAD_HANDOVER_WAITS_HEADING")"
 fi
 
 # The prefix and the time format come from the shared library, because the
