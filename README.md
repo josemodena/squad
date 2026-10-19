@@ -162,7 +162,7 @@ These features work with free GitHub accounts. See
   `curl`, and `flock` (usually in `util-linux`).
 - **One harness:** Codex or Claude Code, installed and authenticated, with plugin
   and native subagent support. The development baseline is Codex 0.155.1 and
-  Claude Code 2.1.280; these are CLI-check baselines, not universal minimums.
+  Claude Code 2.1.295; these are CLI-check baselines, not universal minimums.
   **Opus 5.5 specifically requires Claude Code 2.1.280 or later.**
 - A GitHub repository and a **GitHub Project v2**, with permission to manage its
   issues, pull requests and fields. Setup can create a board.

@@ -73,7 +73,9 @@ the model explicitly at spawn and bind. When the claim specifies an effort, pass
 that explicitly too; a null effort leaves the harness default in place. For Codex use a self-contained brief and
 `fork_turns: none` for a model override. Sol Engineer and Engineering Reviewer
 must use `reasoning_effort: medium`; a missing or different effort fails bind.
-Claude uses its Agent tool with the configured model. If the harness cannot
+Claude uses its Agent tool with the configured model, and passes the Agent
+tool's `effort` parameter whenever the claim or brief sets an effort (Claude
+Code 2.1.292 or later). If the harness cannot
 select the required model/effort, report the capability failure; do not substitute.
 Include the role skill, job context, acceptance criteria, exact revision, durable
 paths and authority boundaries in each brief. Never review your own implementation.

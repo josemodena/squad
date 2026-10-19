@@ -297,6 +297,12 @@ out="$(SQUAD_USAGE_FILE="$WORK/nothing.json" "$SCRIPTS/claude-quota" 2>&1)"; rc=
 check_contains "quota: a missing reading says so"    "$out" "missing:"
 check_equal    "quota: and exits 3"                  "$rc" "3"
 
+# The skills run it as "bash .../claude-quota"; that must print what a direct run prints.
+direct="$(SQUAD_USAGE_FILE="$WORK/usage.json" "$SCRIPTS/claude-quota" 2>&1)"
+viabash="$(SQUAD_USAGE_FILE="$WORK/usage.json" bash "$SCRIPTS/claude-quota" 2>&1)"; rc=$?
+check_equal    "quota: run with bash it exits 0"           "$rc" "0"
+check_equal    "quota: run with bash it prints the same line" "$viabash" "$direct"
+
 # --- 7. the hooks -----------------------------------------------------------
 
 out="$(cd "$WORK" && SQUAD_SETTINGS="" CLAUDE_PROJECT_DIR="$WORK/none" bash "$ROOT/hooks/scripts/session-start.sh" 2>&1)"
@@ -313,6 +319,17 @@ if printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys
 else
   bad "stop hook: a dirty tree warns in valid JSON and does not block" "$out"
 fi
+
+# The compaction guard fails closed: a PreCompact hook that cannot start, times
+# out or exits oddly blocks the compaction, so the hand-over is never skipped
+# silently (Claude Code 2.1.295). The Stop hook warns and never blocks, so it
+# stays fail-open; 2.1.295 does not block a stop on a failed hook anyway.
+got="$(jq -r '[.hooks.PreCompact[].hooks[].onFailure] | unique | join(",")' "$ROOT/hooks/hooks.json")"
+check_equal "hooks: PreCompact declares onFailure block" "$got" "block"
+for event in Stop SessionStart SessionEnd; do
+  got="$(jq -r --arg e "$event" '[.hooks[$e][].hooks[].onFailure // "none"] | unique | join(",")' "$ROOT/hooks/hooks.json")"
+  check_equal "hooks: $event stays fail-open" "$got" "none"
+done
 
 # --- 7b. the conductor ------------------------------------------------------
 
@@ -581,7 +598,7 @@ touch -d "40 days ago" "$HK/transcripts/old.jsonl"
 hk() {
   ( cd "$HK/repo" && bash "$SCRIPTS/housekeeping.sh" \
       --scratch-root "$HK/scratch" --transcripts "$HK/transcripts" \
-      --scratch-age-hours 1 --transcript-days 14 "$@" 2>&1 )
+      --scratch-age-hours 1 --transcript-days 14 --skip-docker "$@" 2>&1 )
 }
 
 out="$(hk --dry-run)"

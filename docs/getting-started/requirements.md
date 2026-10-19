@@ -22,12 +22,16 @@ another platform does not establish support for the complete workflow.
 GitHub CLI 2.46.0 is the supported minimum, including paginated REST operations.
 `doctor` checks its version; board access still needs a live permission check.
 
-Development baselines: Codex 0.155.1, Claude Code 2.1.280. These versions were used
+Development baselines: Codex 0.155.1, Claude Code 2.1.295. These versions were used
 for CLI and manifest checks; they are not established minimum versions. Harness
 interfaces can change. Verify a complete delivery cycle after a harness upgrade.
 
 The current Claude defaults need Claude Code **2.1.280 or later** for Opus 5.5.
-Fable 5.1 needs 2.1.257. Run `claude --version` and
+Fable 5.1 needs 2.1.257. Claude Code 2.1.292 adds the Agent tool's `effort`
+parameter, which the Project Manager passes when a role sets an effort; earlier
+versions ignore it. 2.1.295 honours the PreCompact hook's `onFailure: "block"`,
+and its `-p` runs wait for background commands and keep a skill's `allowed-tools`;
+Squad's skills assume both and carry no workaround. Run `claude --version` and
 `claude update` if needed. Provider mappings and overrides can differ; see
 [model versions and safe upgrades](../guides/model-updates.md).
 

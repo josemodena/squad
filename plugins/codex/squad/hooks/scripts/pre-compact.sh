@@ -20,7 +20,7 @@ if [ ! -x "$HANDOVER" ]; then
   exit 0
 fi
 
-latest="$(bash "$HANDOVER" --latest 2>/dev/null || true)"
+latest="$(timeout 20 bash "$HANDOVER" --latest 2>/dev/null || true)"
 section() {
   local heading="$1"
   printf '%s\n' "$latest" | awk -v heading="$heading" '
@@ -44,7 +44,7 @@ if [ -n "$latest" ]; then
   [ -z "$waits" ] || args+=(--waits "$waits")
 fi
 
-if out="$(bash "$HANDOVER" "${args[@]}" 2>&1)"; then
+if out="$(timeout 20 bash "$HANDOVER" "${args[@]}" 2>&1)"; then
   printf 'Squad: hand-over posted on the sprint issue.\n%s\n' "$out"
   exit 0
 fi

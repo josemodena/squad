@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# The skills run this file as "bash <path>". The next three lines hand a bash
+# run over to Python; to Python they are a string and do nothing.
+""":"
+exec python3 "$0" "$@"
+":"""
 """Refresh Codex account usage and apply Squad's pacing rule.
 
 Codex exposes subscription usage through its local app-server protocol. The
@@ -281,7 +286,7 @@ def verdict(max_age, as_json):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="The Codex subscription quota verdict.")
     subparsers = parser.add_subparsers(dest="command")
     record = subparsers.add_parser("record", help="record a Codex usage reading")
     record.add_argument("--used", type=float, required=True)
