@@ -101,7 +101,9 @@ under runtime storage, and merges that head for integration testing. It returns 
 reviewed head and worktree. On conflicts, preserve and inspect the worktree.
 
 `review-record PR --head SHA --verdict pass|fixes-required|do-not-merge --file FILE`
-rejects a changed head and records the evidence plus review label. Normal review
+rejects a changed head and records the evidence plus review label. The comment
+starts with the pass marker (on a pass) and the verdict line `squad.sh merge` reads:
+`Verdict: merge`, `merge after named fixes` or `do not merge`, then the reviewed head. Normal review
 completion uses native notification, not a conductor event. The Project Manager
 merges with `squad git finish PR ISSUE`; it checks the marker, label, local-main
 safety and passes the exact head to GitHub's merge guard. Engineer submission is

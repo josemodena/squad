@@ -1,6 +1,6 @@
 {
   "name": "squad",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Native agent coordination, a main Project Manager and four technical roles, durable recovery and deterministic project tracking.",
   "author": {
     "name": "Squad"

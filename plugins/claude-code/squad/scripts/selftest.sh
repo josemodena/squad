@@ -62,7 +62,7 @@ elif "views(first:" in query: data={"node":{"views":page([])}}
 elif "items(first:" in query: data={"node":{"items":page([])}}
 elif "fields(first:" in query: data={"node":{"fields":page(p["fields"]["nodes"])}}
 else: data={"node":{"updatedAt":"fixture"}}
-print("HTTP/2.0 200 OK\nx-ratelimit-remaining: 1000\n\n"+json.dumps({"data":data}))
+print("HTTP/2.0 200 OK\nx-ratelimit-remaining: "+os.environ.get("FAKE_GH_REMAINING","1000")+"\n\n"+json.dumps({"data":data}))
 '
       exit $?
     fi
@@ -77,7 +77,13 @@ esac
 # A REST answer can be staged too: the endpoint, with / and ? as _, names a file.
 if [ "$1" = api ] && [ -n "${FAKE_GH_REST:-}" ]; then
   staged="$FAKE_GH_REST/$(printf '%s' "$2" | tr '/?' '__')"
-  if [ -r "$staged" ]; then printf 'HTTP/2.0 200 OK\n\n'; cat "$staged"; exit 0; fi
+  if [ -r "$staged" ]; then
+    # A --jq filter is applied as gh would; otherwise the raw response.
+    filter=""; prev=""
+    for a in "$@"; do [ "$prev" != --jq ] || filter="$a"; prev="$a"; done
+    if [ -n "$filter" ]; then jq -r "$filter" "$staged"; else printf 'HTTP/2.0 200 OK\n\n'; cat "$staged"; fi
+    exit 0
+  fi
 fi
 printf 'fake gh called: %s\n' "$*" >> "$FAKE_GH_LOG"
 exit 0
@@ -660,6 +666,36 @@ check_contains "merge: a PR with no verdict comment is refused" "$out" "merge re
 check_equal    "merge: and it exits non-zero" "$rc" "1"
 check_absent   "merge: nothing is merged" "$(cat "$FAKE_GH_LOG")" "pr merge"
 
+# --- 7g. merge carries on with the close-out when a step fails after it -----
+
+head40="$(printf 'b%.0s' $(seq 40))"
+printf '{"state":"open","merged":true,"head":{"sha":"%s"},"labels":[{"name":"review:passed"}],"body":"Closes #12\\n\\nCloses #13"}' \
+  "$head40" > "$WORK/rest/repos_someone_some-repo_pulls_5"
+printf '[{"body":"<!-- squad-review-passed:%s -->\\nVerdict: merge. Reviewed head %s."}]' "$head40" "$head40" \
+  > "$WORK/rest/repos_someone_some-repo_issues_5_comments_per_page=100"
+for n in 12 13; do
+  printf '{"number":%s,"body":"The plan."}' "$n" > "$WORK/rest/repos_someone_some-repo_issues_$n"
+  printf '[]' > "$WORK/rest/repos_someone_some-repo_issues_${n}_comments_per_page=100"
+done
+: > "$FAKE_GH_LOG"
+# The project is no git checkout, so finish fails; the staged PR says GitHub
+# merged it, and the board cannot be read, so the move of #13 fails too.
+out="$(cd "$PROJECT" && FAKE_GH_REST="$WORK/rest" SQUAD_WRITE_PAUSE=0 bash "$SCRIPTS/squad.sh" merge 5 12 2>&1)"; rc=$?
+check_contains "merge: a failed card move after the merge is reported" "$out" "#13 did not move to Done"
+check_contains "merge: the close-out is still posted" "$(cat "$FAKE_GH_LOG")" "issue comment 12"
+check_equal    "merge: and it exits non-zero at the end" "$rc" "1"
+
+# --- 7h. issue checks the rate budget first and writes Why, What, How ---------
+
+: > "$FAKE_GH_LOG"
+out="$(FAKE_GH_GRAPHQL="$WORK/project.json" FAKE_GH_REMAINING=5 bash "$SCRIPTS/squad.sh" issue "A title" --track Alpha --owner "A Person" 2>&1)"; rc=$?
+check_contains "issue: a low rate budget is refused" "$out" "budget"
+check_absent   "issue: and no issue is created" "$(cat "$FAKE_GH_LOG")" "issue create"
+: > "$FAKE_GH_LOG"
+FAKE_GH_GRAPHQL="$WORK/project.json" bash "$SCRIPTS/squad.sh" issue "A title" --track Alpha --owner "A Person" >/dev/null 2>&1
+check_equal    "issue: with no body it writes the piece template's three headings in order" \
+  "$(grep -o '## [A-Za-z]*' "$FAKE_GH_LOG" | tr '\n' ' ')" "## Why ## What ## How "
+
 # --- 7c. housekeeping and the release review --------------------------------
 
 if find "$WORK" -maxdepth 0 -newermt '-1 hour' -printf '' >/dev/null 2>&1; then
@@ -810,6 +846,11 @@ fi
 
 # --- 9. the two manifests agree on a version ---------------------------------
 
+# An installed or archived plugin carries no marketplace file; only a checkout does.
+marketplace_file="$ROOT/../../../.claude-plugin/marketplace.json"
+if [ ! -r "$marketplace_file" ]; then
+  printf 'skip  manifests: no marketplace file beside this copy (an installed or archived plugin)\n'
+else
 plugin_version="$(jq -r '.version // empty' "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
 marketplace_plugin_version="$(jq -r '.plugins[0].version // empty' "$ROOT/../../../.claude-plugin/marketplace.json" 2>/dev/null)"
 marketplace_version="$(jq -r '.version // empty' "$ROOT/../../../.claude-plugin/marketplace.json" 2>/dev/null)"
@@ -821,6 +862,7 @@ else
 fi
 check_equal "manifests: marketplace.json's own version matches the plugin entry" \
   "$marketplace_version" "$marketplace_plugin_version"
+fi
 
 # --- the count --------------------------------------------------------------
 

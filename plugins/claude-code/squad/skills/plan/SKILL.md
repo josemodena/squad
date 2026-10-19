@@ -41,8 +41,12 @@ Work through this agenda with the Decider:
 2. **The milestones against their dates.** Each one, its due date, and one word
    for its state. Say plainly which are at risk.
 3. **The pieces.** Pull from the backlog. Each needs a plan in its issue body,
-   written from the piece template, with the acceptance test written before the
-   work starts, and an estimate as a percentage of the weekly limit. Apply the
+   written from the piece template under Why, What and How: the Why in plain
+   words (the reason, the consequence of not doing it, the goal or milestone it
+   serves), the acceptance test under How, written before the work starts, and
+   an estimate as a percentage of the weekly limit. Each estimate covers one
+   review under the [review cycle](../../docs/roles/review-cycle.md); plan the
+   sprint's one cold run for its middle. Apply the
    last retrospective's calibration to every estimate.
 4. **The budget.** The planned total against the cap, and what is held back as
    reserve. Reserve the retrospective's own cost.

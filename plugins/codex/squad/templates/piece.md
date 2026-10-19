@@ -6,43 +6,35 @@ labels: type:piece
 assignees: ""
 ---
 
-## Objective
+## Why
 
-What this piece is for, in one or two plain sentences. Say what changes for a person once it is done.
+In plain words anyone on the team can follow: the reason for this piece, what goes wrong or stays missing if it is not done, and the goal or milestone it brings closer.
 
-## Deliverables
+## What
 
-- The files, documents or behaviour this piece produces.
+What this piece produces, and what changes for a person once it is done.
 
-## Acceptance test
+- The files, documents or behaviour it delivers.
 
-The exact commands or checks that prove the piece works, and what a pass looks like. Anyone should be able to run this without asking a question.
+**Out of scope:** what this piece deliberately leaves alone, so the branch stays small.
 
-## Tasks
+**Dependencies:** what must exist before it can start, including anything only {{DECIDER}} can do. Link the issues.
+
+## How
+
+The approach, in a few steps.
 
 - [ ] First task
 - [ ] Second task
 
-## Dependencies
+**Acceptance test:** the exact commands or checks that prove the piece works, and what a pass looks like, written before the work starts. Anyone should be able to run it without asking a question. Fixtures come from the architect or the Reviewer, never from the Engineer.
 
-What must exist before this piece can start, including anything only {{DECIDER}} can do. Link the issues.
+**Size:** a pull request of about 400 non-test lines at most; a bigger piece is split in dependency order.
 
-## Out of scope
+**Design critique:** would a simpler, more general or less duplicated shape do the same job? If yes and cheap, adopt it here. If yes and expensive, open a backlog issue naming the trigger that makes it worth doing. If no, say why in a sentence.
 
-What this piece deliberately does not touch, so the branch stays small.
+**Estimate in credits %:** the planned share of the weekly limit, for example 4%, and the basis for the number.
 
-## Design critique
+**Tracking metadata:** set Responsible role, Stage, Agreement, Design (Required/Approved/Existing), Priority, Needed by, Forecast finish, Estimate (hours) and remaining Estimate (credits %) on the Project. Record prerequisites with native blocked-by relationships. Labels describe type/component; Assignees name real GitHub accounts.
 
-One paragraph: would a simpler, more general or less duplicated shape do the same job? If yes and cheap, adopt it here. If yes and expensive, open a backlog issue naming the trigger that makes it worth doing. If no, say why in a sentence.
-
-## Estimate in credits %
-
-Planned share of the weekly limit, for example 4%. State the basis for the number.
-
-## Tracking metadata
-
-Set Responsible role, Stage, Agreement, Design (Required/Approved/Existing), Priority, Needed by, Forecast finish, Estimate (hours) and remaining Estimate (credits %) on the Project. Record prerequisites with native blocked-by relationships. Labels describe type/component; Assignees name real GitHub accounts.
-
-## Architecture evidence
-
-Link the approved immutable design revision and independent review, or the existing design covering this piece.
+**Architecture evidence:** link the approved immutable design revision and independent review, or the existing design covering this piece.

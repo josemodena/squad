@@ -225,6 +225,14 @@ class BoardBackup(unittest.TestCase):
         api=FakeAPI(current,remaining=1)
         with self.store.lock(),self.assertRaises(ValueError):b.execute(api,self.store,b.plan_restore(saved,current))
         self.assertEqual(api.calls,[])
+    def test_budget_reads_an_unknown_budget_and_refuses_a_low_one_before_any_write(self):
+        api=FakeAPI(remaining=None)
+        def query(q,v=None):
+            api.calls.append((q,v));api.remaining=25;return {'viewer':{'login':'x'}}
+        with patch.object(api,'query',side_effect=query),self.assertRaisesRegex(ValueError,'budget'):b.budget(api,10)
+        self.assertEqual(len(api.calls),1);self.assertFalse(api.calls[0][0].startswith('mutation'))
+        api.remaining=100;b.budget(api,10)
+        self.assertEqual(len(api.calls),1)
     def test_lost_mutation_response_leaves_journal_and_stops(self):
         api=FakeAPI();plan={'blocked':[],'changes':[{'kind':'value','input':{}},{'kind':'value','input':{}}]}
         with self.store.lock(),patch.object(api,'query',side_effect=ValueError('lost response')) as call:

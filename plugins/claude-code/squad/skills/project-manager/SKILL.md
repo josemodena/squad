@@ -40,7 +40,15 @@ The flow is:
 3. On the result, read `squad.sh verdict N`, not the report. A pull request
    moves the card to In review (`squad.sh at-pr N PR`); a fresh Reviewer
    reviews it; `squad.sh merge PR N` checks the verdict, merges the reviewed
-   head, moves every closed issue to Done and posts the close-out.
+   head, moves every closed issue to Done and posts the close-out. After
+   named fixes, check the fix's diff and run the affected checks yourself, then
+   post a comment naming the new head before `merge`; there is no second
+   review unless the fix changes behaviour. If a step fails after GitHub has
+   merged, `merge` still finishes the close-out and lists what failed.
+   The [review cycle](../../docs/roles/review-cycle.md) is the rule: machine
+   gates before any Reviewer, about 400 non-test lines per pull request, one
+   scoped review, notes that do not block, fixtures never written by the
+   Engineer, two full suites at once at most and one cold run mid-sprint.
 4. Results and decisions are recorded on the issue and the pull request. The
    hand-over on the sprint issue is the recovery record.
 
@@ -258,8 +266,9 @@ an unchanged blocked task to appear busy. Process other independent ready work.
   A PM resolution handoff must include `reply_disposition` with the exact `url`,
   `outcome` (`accepted`, `clarification` or `rejected`) and `evidence`. A later reply
   remains pending. An approval never implicitly resumes a user-paused project.
-- Review fixes: route a bounded correction back to its authoring role; use a fresh
-  independent reviewer after correction. A final native gate must not conceal
+- Review fixes: route the blocking findings to a fresh Engineer as a bounded
+  correction; check the fix's diff yourself before merging, and use a fresh
+  independent reviewer only when the fix changes behaviour beyond the findings. A final native gate must not conceal
   useful already-authorised offline correction work: track it as a separate
   bounded assignment with its own acceptance criteria and explicit dependencies.
 

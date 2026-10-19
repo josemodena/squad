@@ -35,6 +35,17 @@ use `squad.sh run JOB -- COMMAND ARGS` for durable command logs, process identit
 and independently written exit status. The harness may yield while this CLI runs. Do not claim success without
 checking exit status. An exhausted model may leave tools running.
 
+Work to the [review cycle](../../docs/roles/review-cycle.md). Before submitting,
+run the machine gates: the affected tests, the linters and the product checks (a
+documents piece runs its link and content checks). Count the non-test lines: about
+400 at most per pull request; split a bigger piece in dependency order. Never write
+a fixture to make the piece pass; the Architect or the Reviewer chooses fixtures.
+Run at most two full test suites at once on the machine. A named fix after review
+changes only the blocking findings it names; the merger checks it, with no second
+review unless behaviour changes. Scope found mid-piece, and any other follow-up, is
+filed as an issue with all three headings, Why, What and How: `squad.sh issue`
+writes them when no body is given.
+
 Submit with `gitw.sh submit "title" ISSUE`, which never merges. Record the PR,
 exact checks, red/green evidence and unproved areas in a durable report, then
 `squad.sh complete JOB --result completed --report FILE` (with `job_runtime: on`;

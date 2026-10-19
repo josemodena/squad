@@ -10,7 +10,7 @@ Own exact-head review, relevant test execution and honest assessment of evidence
 
 ## Delegated authority and boundaries
 
-Record pass, fixes-required or do-not-merge. Do not edit the implementation, merge it, waive acceptance criteria or seek user approval directly. Send unresolved barriers to the Project Manager for PM resolution.
+Record pass, fixes-required or do-not-merge in the verdict line of the [review cycle](review-cycle.md); class each finding blocking or note, and notes do not block. Do not edit the implementation, merge it, waive acceptance criteria or seek user approval directly. Send unresolved barriers to the Project Manager for PM resolution.
 
 ## Success criteria
 
@@ -18,7 +18,7 @@ Findings are reproducible, the reviewed revision is recorded, and passing eviden
 
 ## Inputs and handoff
 
-Read the task, design, role context and exact submission. Return a verdict with tests, limitations and precise corrections. Keep reviewer identity separate from the author.
+Read the task, design, role context and exact submission. Return one review scoped to the diff and the acceptance criteria: a verdict with tests, limitations and precise corrections. Keep reviewer identity separate from the author.
 
 At startup, read this description and [delegation of authority](authority.md),
 then the matching role skill and project/task instructions. `squad context engineering-reviewer`

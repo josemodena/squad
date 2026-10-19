@@ -348,7 +348,9 @@ def backup_board(config):
     import board_backup as backup
     api=backup.API(config=config);store=backup.Store(config)
     with store.lock():
-        return backup.session_backup(api,store,config)
+        snapshot=backup.session_backup(api,store,config)
+        backup.budget(api,10)
+        return snapshot
 
 
 def field_set(config, issue, field, value):
@@ -636,7 +638,9 @@ def main():
         marker = '<!-- squad-review-passed:'+args.head+' -->' if args.verdict == 'pass' else '<!-- squad-review-failed:'+args.head+' -->'
         # Stable marker + verdict avoids duplicate comments when a client loses its response.
         comments = gh('pr','view',str(args.pr),'--repo',config['repository'],'--json','comments')['comments']
-        body = marker+'\nVerdict: '+args.verdict+'\n\n'+report
+        # The verdict line in the words squad.sh merge reads, then the head.
+        words = {'pass':'merge','fixes-required':'merge after named fixes','do-not-merge':'do not merge'}[args.verdict]
+        body = marker+'\nVerdict: '+words+'. Reviewed head '+args.head+'.\n\n'+report
         if not any(c['body'] == body for c in comments):
             with tempfile.NamedTemporaryFile(mode='w', dir=root(config), suffix='.md') as f:
                 f.write(body); f.flush()

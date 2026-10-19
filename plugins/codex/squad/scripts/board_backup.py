@@ -97,6 +97,15 @@ class API:
             raise ValueError('Insufficient known GraphQL budget for the complete operation; no writes started')
 
 
+def budget(api, writes):
+    """The rate budget check every run of writes makes first, without a full
+    read: a recent limit defers before any request, and a budget not yet known
+    is read with one cheap query."""
+    if api.remaining is None:
+        api.query('query{viewer{login}}')
+    api.preflight(writes)
+
+
 def connection(api, pid, key, selection, size=100):
     rows, cursor, seen = [], None, set()
     while True:
@@ -420,6 +429,7 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     guard=sub.add_parser('guard');guard.add_argument('--writes',type=int,default=20)
     sub.add_parser('session',help='Take a full backup unless one younger than an hour exists')
+    check=sub.add_parser('budget',help='Check the rate budget before a run of writes; no backup');check.add_argument('--writes',type=int,default=10)
     snap=sub.add_parser('snapshot');snap.add_argument('--dry-run',action='store_true',help='Read/export JSON to stdout without saving a local snapshot')
     restore=sub.add_parser('restore');restore.add_argument('snapshot');restore.add_argument('--dry-run',action='store_true')
     restore.add_argument('--apply',action='store_true');restore.add_argument('--confirm',help='Exact project node ID, required for apply')
@@ -429,6 +439,8 @@ def main():
     os.environ['SQUAD_API_OPERATION']='board-'+args.command
     api=API(config=config);store=Store(config)
     with store.lock():
+        if args.command=='budget':
+            budget(api,args.writes);print(json.dumps({'remaining':api.remaining}));return
         if args.command=='session':
             print(json.dumps({'snapshot':session_backup(api,store,config)}));return
         current=capture(api,config)

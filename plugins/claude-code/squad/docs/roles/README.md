@@ -11,5 +11,7 @@ These are the shared role contracts delivered to both plugins at startup.
 | [Architecture Reviewer](architecture-reviewer.md) | Independent design assessment |
 | [Engineering Reviewer](engineering-reviewer.md) | Independent implementation acceptance |
 
+The [review cycle](review-cycle.md) is the rule every piece follows from plan to merge.
+
 See [decisions and learning](../guides/decisions-and-learning.md) for the complete
 workflow, startup context and durable project memory.

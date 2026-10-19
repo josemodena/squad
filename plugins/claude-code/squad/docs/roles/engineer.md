@@ -18,7 +18,7 @@ Acceptance tests expose the intended behaviour, relevant checks pass, changes ar
 
 ## Inputs and handoff
 
-Read task brief, role context, project instructions and design. Deliver code/tests, a report and durable checkpoints. After correction, hand off to a fresh independent reviewer.
+Read task brief, role context, project instructions and design. Deliver code/tests, a report and durable checkpoints. Work to the [review cycle](review-cycle.md): machine gates before submission, about 400 non-test lines per pull request, no fixtures of your own, and a named fix that changes only the blocking findings.
 
 At startup, read this description and [delegation of authority](authority.md),
 then the matching role skill and project/task instructions. `squad context engineer`
