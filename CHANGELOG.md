@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.6.2 — local build; public release with 0.7.0
+
+- `claude-quota` reads both meters: all models, and every per-model weekly
+  meter in the status line's usage file (`fableUsage` today, setting
+  `model_usage_file`). Each gets a line; the verdict comes from the meter with
+  less headroom. A reading above 100 is the provider limit, kept as read.
+  `quota-note` and the conductor use the plugin's own reader first.
+- Board writes take one full backup per session (refreshed after an hour)
+  instead of one per write, read only the card they change, and pause between
+  writes (`SQUAD_WRITE_PAUSE`, default 3 s). `squad.sh place` sets status,
+  sprint, iteration and estimate in one call.
+- `squad.sh merge <pr> <issue>` checks the Reviewer's verdict, records the pass
+  after named fixes, finishes, moves every closed issue to Done and posts the
+  close-out with the Implementer's cost line. `launch` and `at-pr` do the board
+  upkeep and keep an `<!-- in-flight -->` line in the issue body. `verdict`
+  prints the last report's verdict line and sha.
+- Claude Code 2.1.299: every hook reads its input before any early exit; a
+  hook-written hand-over (PreCompact, which idle compaction now fires) reads
+  the in-flight lines from the board and carries the last hand-over's next
+  actions and waits instead of claiming none. Idle compaction stays on.
+
 ## 0.6.1 — local build; public release after review
 
 - `gitw.sh start` creates each piece's worktree under `<scratch_root>/worktrees`
