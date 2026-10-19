@@ -67,7 +67,8 @@ func TestReviewWriteFailureSettlesOnlyItsOwnResume(t *testing.T) {
 		_, err := second.call("thread/resume", map[string]any{"threadId": "owned", "reviewPadding": strings.Repeat("x", 4<<20)}, nil)
 		failed <- err
 	}()
-	deadline := time.Now().Add(8 * time.Second)
+	// Generous bound (#429): the 4 MiB write under -race on a loaded machine took over 8 s; a pass exits as soon as the count is 2.
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		a.mu.Lock()
 		count := a.threads["owned"].PolicyInFlight
