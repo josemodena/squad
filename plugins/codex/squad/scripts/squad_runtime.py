@@ -348,9 +348,7 @@ def backup_board(config):
     import board_backup as backup
     api=backup.API(config=config);store=backup.Store(config)
     with store.lock():
-        snapshot=backup.capture(api,config)
-        api.preflight(10)
-        return store.save(snapshot,'before-board-write')
+        return backup.session_backup(api,store,config)
 
 
 def field_set(config, issue, field, value):
@@ -358,25 +356,44 @@ def field_set(config, issue, field, value):
     return {**result,'field':field,'value':value}
 
 
-def fields_set(config, issue, values):
-    """One fresh snapshot and journal for an entire field handoff, never atomic by claim."""
+def iteration_for(entry, name):
+    """The iteration a sprint name means: an exact title, else the longest
+    title the name begins with followed by a space ("Sprint 2 (19 to 26 Sep)"
+    means "Sprint 2", and "Sprint 1" never claims "Sprint 10")."""
+    conf=entry.get('configuration') or {}
+    its=(conf.get('iterations') or [])+(conf.get('completedIterations') or [])
+    exact=[i for i in its if i['title']==name]
+    prefix=sorted((i for i in its if name.startswith(i['title']+' ')),key=lambda i:len(i['title']),reverse=True)
+    return (exact+prefix or [None])[0]
+
+
+def fields_set(config, issue, values, optional=()):
+    """Set several fields of one issue's card: one read, one journal, a pause
+    between writes. The full board backup is taken once per session.
+    Fields named in optional are skipped when the board lacks them."""
     import board_backup as backup
     if not isinstance(values,dict) or not values: raise ValueError('fields requires a nonempty JSON object')
     api=backup.API(config=config);store=backup.Store(config)
     with store.lock():
-        snapshot=backup.capture(api,config)
-        item=next((i for i in snapshot['items'] if i['content'].get('number')==issue
-                   and i['content'].get('repository',{}).get('nameWithOwner')==config['repository']),None)
-        if not item: raise ValueError('Issue not found on project')
-        changes=[];unchanged=[]
+        session=backup.session_backup(api,store,config)
+        project,fields,item=backup.item_read(api,config,issue)
+        changes=[];unchanged=[];skipped=[]
         for field,value in values.items():
-            entry=next((f for f in snapshot['fields'] if f['name']==field),None)
+            entry=next((f for f in fields if f.get('name')==field),None)
+            if not entry and field in optional:
+                skipped.append(field);continue
             if not entry: raise ValueError('Field not found on project: '+field)
             kind=entry['dataType']
             if kind=='SINGLE_SELECT':
                 option=next((o for o in entry['options'] if o['name']==value),None)
                 if not option: raise ValueError('Unknown option for '+field)
                 new={'singleSelectOptionId':option['id']};key='optionId'
+            elif kind=='ITERATION':
+                iteration=iteration_for(entry,str(value))
+                if not iteration and field in optional:
+                    skipped.append(field);continue
+                if not iteration: raise ValueError('No iteration of '+field+' matches '+str(value))
+                new={'iterationId':iteration['id']};key='iterationId'
             elif kind=='DATE':
                 dt.date.fromisoformat(value);new={'date':value};key='date'
             elif kind=='NUMBER':
@@ -388,11 +405,12 @@ def fields_set(config, issue, values):
             old=next((v for v in item['fieldValues']['nodes'] if v.get('field',{}).get('id')==entry['id']),None)
             if old and old.get(key)==next(iter(new.values())):
                 unchanged.append(field);continue
-            args={'projectId':snapshot['project']['id'],'itemId':item['id'],'fieldId':entry['id'],'value':new}
+            args={'projectId':project['id'],'itemId':item['id'],'fieldId':entry['id'],'value':new}
             changes.append({'kind':'value','input':args,'before':old})
-        before=store.save(snapshot,'before-fields')
+        before=store.save({'issue':issue,'item':item,'session_backup':session},'before-fields')
         if changes:
-            backup.execute(api,store,{'blocked':[],'snapshot':before,'changes':changes})
+            pause=float(os.environ.get('SQUAD_WRITE_PAUSE','3'))
+            backup.execute(api,store,{'blocked':[],'snapshot':before,'changes':changes,'pause':pause})
             # Verify only the changed item, not a second full board export.
             query='query($id:ID!){node(id:$id){... on ProjectV2Item{fieldValues(first:100){'+backup.PAGE+'{'+backup.VALUE+'}}}}}'
             node=api.query(query,{'id':item['id']})['node']
@@ -408,7 +426,8 @@ def fields_set(config, issue, values):
                     store.save({'status':'verification-failed','snapshot':before,'change':change,'actual':actual},'field-verification')
                     raise ValueError('Field verification failed; inspect journal before retrying')
             store.save({'status':'verified','snapshot':before,'issue':issue,'fields':values},'field-verification')
-    return {'issue':issue,'values':values,'changed':len(changes),'unchanged':unchanged,'snapshot':before}
+    return {'issue':issue,'values':values,'changed':len(changes),'unchanged':unchanged,'skipped':skipped,
+            'snapshot':before,'backup':session}
 
 
 def checkpoint(job, source):
@@ -445,7 +464,7 @@ def parser():
         command = sub.add_parser(name)
         if name in ('ready','next','board-read'): command.add_argument('--fresh', action='store_true')
     s = sub.add_parser('api-status')
-    s = sub.add_parser('fields'); s.add_argument('issue',type=int); s.add_argument('--file',required=True)
+    s = sub.add_parser('fields'); s.add_argument('issue',type=int); s.add_argument('--file',required=True); s.add_argument('--optional',action='append',default=[])
     s = sub.add_parser('pm-check'); s.add_argument('--session',required=True)
     s = sub.add_parser('context'); s.add_argument('role', choices=ROLES); s.add_argument('--issue',type=int)
     s = sub.add_parser('inbox'); s.add_argument('action',choices=('poll','status','watch','unwatch')); s.add_argument('--issue',type=int); s.add_argument('--since'); s.add_argument('--force',action='store_true')
@@ -497,7 +516,7 @@ def main():
         import github_io
         result=github_io.status(config)
     elif cmd == 'fields':
-        result=fields_set(config,args.issue,read(args.file))
+        result=fields_set(config,args.issue,read(args.file),tuple(args.optional))
     elif cmd == 'context':
         import knowledge
         result = knowledge.context(config,args.role,args.issue)

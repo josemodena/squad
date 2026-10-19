@@ -613,6 +613,15 @@ out="$(FAKE_GH_GRAPHQL="$WORK/no-iteration.json" bash "$SCRIPTS/squad.sh" sprint
 check_contains "sprint: a board with no iteration field still works" "$out" "issue #12 is in sprint Sprint 2"
 check_contains "sprint: and says the field is missing"               "$out" 'no "Iteration" field'
 
+# --- 7e. place sets a card's fields in one call ------------------------------
+
+out="$(bash "$SCRIPTS/squad.sh" place 12 2>&1)"; rc=$?
+check_contains "place: it needs a field to set" "$out" "place needs --sprint, --status or --estimate"
+out="$(bash "$SCRIPTS/squad.sh" place 12 --status Nowhere 2>&1)"
+check_contains "place: an unknown status is refused before any read" "$out" "Status must be one of"
+out="$(bash "$SCRIPTS/squad.sh" place 12 --estimate two 2>&1)"
+check_contains "place: the estimate is a number" "$out" "--estimate must be a number"
+
 # --- 7c. housekeeping and the release review --------------------------------
 
 if find "$WORK" -maxdepth 0 -newermt '-1 hour' -printf '' >/dev/null 2>&1; then
