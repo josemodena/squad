@@ -100,6 +100,8 @@ Done}"
   : "${SQUAD_CONTINUATION_MODE:=native}"
   : "${SQUAD_QUOTA_MODE:=pacing}"
   : "${SQUAD_PROJECT_MANAGER_EFFORT:=high}"
+  # The Codex conductor recovers from job records, so they stay on here.
+  : "${SQUAD_JOB_RUNTIME:=on}"
   : "${SQUAD_PROJECT_MANAGER_MODEL:=gpt-6-astra}"
   : "${SQUAD_ARCHITECT_MODEL:=gpt-6-astra}"
   : "${SQUAD_ENGINEER_MODEL:=gpt-6.1-sol}"

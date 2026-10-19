@@ -101,6 +101,9 @@ Done}"
   : "${SQUAD_CONTINUATION_MODE:=native}"
   : "${SQUAD_QUOTA_MODE:=pacing}"
   : "${SQUAD_PROJECT_MANAGER_EFFORT:=high}"
+  # The job runtime (claims, checkpoints, Stage, Responsible role) is retired
+  # for Claude Code: Status on the board is the state. "on" keeps it.
+  : "${SQUAD_JOB_RUNTIME:=off}"
   : "${SQUAD_PROJECT_MANAGER_MODEL:=fable}"
   : "${SQUAD_ARCHITECT_MODEL:=fable}"
   : "${SQUAD_ENGINEER_MODEL:=opus}"

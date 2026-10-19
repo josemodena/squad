@@ -5,6 +5,21 @@ commands return JSON. Failures return a non-zero exit code and JSON on stderr.
 The CLI never invokes a model. `runtime.sh` exposes the same new commands directly.
 Python 3 (standard library), Git, GitHub CLI and the existing Bash tools are required.
 
+## When `job_runtime` is off
+
+Claude Code projects default to `job_runtime: off`; Codex projects default to
+`on`, because the Codex conductor recovers from job records. When it is off:
+
+- `claim`, `repair-claim`, `pm-claim`, `bind`, `checkpoint`, `complete`, `handoff`,
+  `ack`, `retry`, `run` and `observe` refuse with a message saying so.
+- `metrics` prints `{"retired": true, "note": ...}` instead of measurements.
+- `ready` and `next` ignore Stage and Responsible role. A card in This sprint
+  that is agreed, estimated and free of open prerequisites is `dispatch`; a
+  card In progress or In review is `in-flight` and is never dispatched again.
+- `init` does not create the Stage and Responsible role fields.
+- `wake`, `settle`, `external`, `recover`, `pause`, `resume` and `policy` work
+  as before. Everything below that names a job applies only when it is on.
+
 ## Planning and tracking
 
 - `issue-create --key STABLE_KEY --title TITLE --file PLAN`: repeatable creation,

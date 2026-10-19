@@ -8,7 +8,7 @@ description: Summarise durable Squad execution records and agreed next actions f
 The Project Manager owns continuation. Workers checkpoint their own progress;
 the Project Manager owns the agreed plan. Read `squad.sh recover` and the board.
 Write a human summary using the existing `handover.sh` command: tree, running
-jobs, next actions, waits and relevant events. Durable claims and checkpoints
+jobs, next actions, waits and relevant events. With `job_runtime: on`, durable claims and checkpoints
 already exist before this comment; recovery must work even if it cannot be posted.
 
 On restart inspect native worker identities and any surviving background commands

@@ -305,8 +305,12 @@ apply_fields() {
   field_exists "$SQUAD_ESTIMATE_FIELD" || create_simple_field "$SQUAD_ESTIMATE_FIELD" NUMBER
   field_exists "$SQUAD_SPRINT_FIELD" || create_single_select "$SQUAD_SPRINT_FIELD" "Sprint 1"
   field_exists "$SQUAD_NEEDED_BY_FIELD" || create_simple_field "$SQUAD_NEEDED_BY_FIELD" DATE
-  field_exists "Responsible role" || create_single_select "Responsible role" $'project-manager\narchitect\nengineer\narchitecture-reviewer\nengineering-reviewer'
-  field_exists "Stage" || create_single_select "Stage" $'planning\narchitecture\narchitecture-review\nengineering\nengineering-review\ndone'
+  # Stage and Responsible role feed the job runtime only; with it off, Status
+  # on the board is the state and the two fields are not created.
+  if [ "${SQUAD_JOB_RUNTIME:-off}" != "off" ]; then
+    field_exists "Responsible role" || create_single_select "Responsible role" $'project-manager\narchitect\nengineer\narchitecture-reviewer\nengineering-reviewer'
+    field_exists "Stage" || create_single_select "Stage" $'planning\narchitecture\narchitecture-review\nengineering\nengineering-review\ndone'
+  fi
   field_exists "Agreement" || create_single_select "Agreement" $'Proposed\nAgreed'
   field_exists "Design" || create_single_select "Design" $'Required\nApproved\nExisting'
   field_exists "Priority" || create_single_select "Priority" $'P0\nP1\nP2\nP3'
@@ -391,8 +395,8 @@ The rules every session follows without being asked:
   \`gitw.sh\`. Nothing is committed straight to main.
 - **Native continuation.** The Project Manager dispatches fresh role subagents,
   handles each result immediately and waits on native events when needed.
-  Record claims, checkpoints and results through \`squad.sh\`; a final prose
-  handover is never the sole recovery record.
+  Status on the board is the state: move the card as the piece moves, and
+  record results on the issue and the pull request.
 - **An agent that has finished is never messaged again.** The next step goes to
   a fresh agent with a written brief.
 

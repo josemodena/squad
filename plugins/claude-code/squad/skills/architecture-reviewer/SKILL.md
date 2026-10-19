@@ -23,8 +23,8 @@ the design or implement it. Inspect at least one material counterexample.
 Report pass, fixes required or do not proceed with evidence tied to the design
 revision. Write the report and post it with `squad.sh comment ISSUE --file FILE`.
 Only a pass on the current design allows the Project Manager to set Design Approved.
-A changed design invalidates the prior pass. Complete the named job with its
-durable report; native notification returns control to the Project Manager.
+A changed design invalidates the prior pass. With `job_runtime: on`, complete the named job with its
+durable report (otherwise post it on the issue); native notification returns control to the Project Manager.
 
 Route unresolved delivery barriers to the Project Manager for PM resolution; do not
 originate user approval requests. At completion or a significant failure, propose

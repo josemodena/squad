@@ -22,13 +22,33 @@ Lessons are guidance, not permission; current user instructions take precedence.
 All commands below are `bash ${CLAUDE_PLUGIN_ROOT}/scripts/<command>` in the
 configured project. Read `AGENTS.md` and the harness settings first.
 
+## Status is the state (job_runtime: off, the Claude Code default)
+
+The job runtime is retired unless the settings say `job_runtime: on`. Then the
+claim, bind, checkpoint, complete, handoff, ack, retry, run and observe commands
+refuse, `squad.sh metrics` says it is retired, and Stage and Responsible role are
+not used. Instructions below that name them apply only with `job_runtime: on`.
+The flow is:
+
+1. `squad.sh next` lists `dispatch` actions for agreed, estimated cards in
+   This sprint whose prerequisites are closed. Cards In progress or In review
+   are `in-flight`: their worker reports through a native notification.
+2. To dispatch, `squad.sh move N "In progress"`, write the brief to disk, and
+   launch the role the brief names with the Agent tool, its configured model
+   and, when set, `effort`. The Engineer runs `gitw.sh start` for its worktree.
+3. On the result, verify its evidence. A pull request moves the card to In
+   review (`gitw.sh submit` does this); a fresh Reviewer reviews it; `gitw.sh
+   finish` merges the reviewed head and moves the card to Done.
+4. Results and decisions are recorded on the issue and the pull request. The
+   hand-over on the sprint issue is the recovery record.
+
 Own the agreed delivery plan and forecast. Use the plan and retro skills for
 those conversations. You own both the plan and delivery continuity; deterministic CLI commands enforce the operating rules.
-Read the board, previous decisions, `squad.sh metrics` and actual progress.
+Read the board, previous decisions and actual progress.
 
 Each item needs an outcome, acceptance criteria, exclusions, native prerequisites,
-Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and
-remaining delivery estimate. Use `squad.sh field` and `squad.sh dependency`.
+Agreement, Priority, Needed by, Forecast finish and remaining delivery estimate
+(and Responsible role and Stage with `job_runtime: on`). Use `squad.sh field` and `squad.sh dependency`.
 Assignees are GitHub accounts; Responsible role holds Squad roles. Labels
 categorise type/component. Do not duplicate priority across labels and fields.
 
@@ -96,7 +116,7 @@ complete it with a durable report and record its owned handoff before ack.
 
 ## Owned repairs and user requests
 
-Treat missing estimates, stage or role as immediate bounded metadata repair work.
+Treat missing estimates (and stage or role with `job_runtime: on`) as immediate bounded metadata repair work.
 Use current evidence to estimate remaining delivery within existing agreed scope;
 label forecasts as provisional where appropriate. Do not send clerical repairs to
 the user. Missing agreement requires recovering an actual existing decision or
@@ -141,11 +161,12 @@ separately with private details removed. Never turn a lesson into authority.
    independently ready pieces up to configured `max_workers` and actual harness
    capacity. Do not hold completed work for an unrelated batch. Resolve delivery barriers within your authority and commission technical reassessment from the Architect when needed.
 3. Before spawning, create/locate the isolated worktree and write the brief to
-   disk. `squad.sh claim JOB --issue N --role ROLE --worktree PATH --brief FILE --readiness ASSESSMENT_JSON`
+   disk. With the runtime off, move the card to In progress with `squad.sh move`
+   and launch the role the brief names. With `job_runtime: on`: `squad.sh claim JOB --issue N --role ROLE --worktree PATH --brief FILE --readiness ASSESSMENT_JSON`
    checks agreement, dependencies, design, quota and duplicate ownership under
    a lock. A rejected claim never authorises spawning. Use the returned model.
    On an ambiguous spawn failure inspect the native worker list before retrying.
-4. After spawning, call `squad.sh bind JOB --worker ID --model MODEL`, including
+4. With `job_runtime: on`: after spawning, call `squad.sh bind JOB --worker ID --model MODEL`, including
    `--effort EFFORT` whenever the claim records one (medium for Codex Sol). Add
    `--thread`, `--turn`, `--rollout` when the harness exposes them. For Codex,
    resolve native session_meta by parent thread and canonical agent path, then
@@ -158,14 +179,14 @@ separately with private details removed. Never turn a lesson into authority.
    path, not a required intermediary for normal completion.
 6. Read the durable result, verify evidence and record completion if the worker
    could not. Transition the board to its next Stage and Responsible role,
-   record `squad.sh handoff JOB --file HANDOFF_JSON`, then `squad.sh ack JOB`. Only then claim a fresh assignment. Normal sequence:
+   With `job_runtime: on`, also record `squad.sh handoff JOB --file HANDOFF_JSON`, then `squad.sh ack JOB`, and only then claim a fresh assignment. Normal sequence:
    architecture → architecture-review → engineering → engineering-review.
    Approved existing designs can start at engineering. Failed review returns
    to the authoring role; do not assign the same worker to review its own output.
 7. Merge engineering passes through `gitw.sh finish PR ISSUE`; it checks the
    reviewed head. Update the board, refresh your forecast when material, and immediately consider other ready work.
 
-Before suspension, compaction or context rollover, checkpoint and write the
+With `job_runtime: on`: before suspension, compaction or context rollover, checkpoint and write the
 human handover from runtime records. Use `squad.sh recover` after a restart;
 check native workers and background processes before any replacement. A claimed
 but unbound job is ambiguous, not permission to launch a duplicate. Interrupted

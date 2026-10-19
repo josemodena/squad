@@ -41,7 +41,7 @@ Planned share of the weekly limit, for example 4%. State the basis for the numbe
 
 ## Tracking metadata
 
-Set Responsible role, Stage, Agreement, Design (Required/Approved/Existing), Priority, Needed by, Forecast finish, Estimate (hours) and remaining Estimate (credits %) on the Project. Record prerequisites with native blocked-by relationships. Labels describe type/component; Assignees name real GitHub accounts.
+Set Agreement, Design (Required/Approved/Existing), Priority, Needed by, Forecast finish, Estimate (hours) and remaining Estimate (credits %) on the Project. Record prerequisites with native blocked-by relationships. Labels describe type/component; Assignees name real GitHub accounts.
 
 ## Architecture evidence
 

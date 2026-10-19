@@ -428,4 +428,48 @@ class RuntimeTest(unittest.TestCase):
         self.cli('observe','--reason','ready','--eligible','1','--capacity','2')
         self.assertGreaterEqual(self.cli('metrics')['avoidable_idle_seconds'],0)
 
+
+class StatusOnlyTest(unittest.TestCase):
+    """job_runtime: off. Status on the board is the state; no claims, no Stage."""
+    cli=RuntimeTest.cli
+    def setUp(self):
+        RuntimeTest.setUp(self)
+        self.config['job_runtime']='off'
+        for key in ('Stage','Responsible role'):
+            self.item['fields'].pop(key)
+    def run_cli(self,*args):
+        with patch.object(sys,'argv',['runtime',*args]),patch.object(r,'settings',return_value=self.config),patch.object(r,'board',return_value=[self.item]),patch.object(r,'quota_read',return_value=self.quota), contextlib.redirect_stdout(io.StringIO()) as out:
+            r.main()
+            return out.getvalue()
+    def test_this_sprint_is_eligible_without_stage_or_role(self):
+        item=self.cli('ready')[0]
+        self.assertTrue(item['eligible'],item['reasons'])
+        self.assertNotIn('role-stage-mismatch',item['reasons'])
+    def test_in_progress_and_in_review_are_in_flight_not_dispatchable(self):
+        for status in ('In progress','In review'):
+            with self.subTest(status=status):
+                self.item['fields']['Status']=status
+                item=self.cli('ready')[0]
+                self.assertFalse(item['eligible'])
+                self.assertEqual(item['reasons'],['in-flight'])
+                self.assertFalse(any(a['action'] in ('dispatch','resolve-with-pm','repair-metadata') for a in self.cli('next')['actions']))
+    def test_next_dispatches_by_status(self):
+        actions=self.cli('next')['actions']
+        self.assertEqual([a['action'] for a in actions],['dispatch'])
+        self.assertIn('squad.sh move',actions[0]['next_action'])
+    def test_job_commands_are_retired(self):
+        for args in (('claim','j1','--issue','1','--role','engineer','--worktree',str(self.worktree),'--brief',str(self.brief),'--readiness',str(self.assessment)),
+                     ('checkpoint','j1','--file',str(self.report)),('bind','j1','--worker','w','--model','m'),
+                     ('observe','--reason','ready','--eligible','1','--capacity','1')):
+            with self.subTest(command=args[0]):
+                with self.assertRaisesRegex(ValueError,'retired'):
+                    self.run_cli(*args)
+    def test_metrics_says_it_is_retired_instead_of_printing_nothing(self):
+        out=json.loads(self.run_cli('metrics'))
+        self.assertTrue(out['retired'])
+        self.assertIn('Status',out['note'])
+    def test_missing_estimate_still_blocks(self):
+        self.item['fields'].pop('Estimate (credits %)')
+        self.assertIn('missing-estimate',self.cli('ready')[0]['reasons'])
+
 if __name__=='__main__': unittest.main()

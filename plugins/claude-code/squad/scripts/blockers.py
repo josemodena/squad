@@ -88,6 +88,7 @@ def describe(reason,item,config):
       'not-agreed':('metadata-repair-required','project-manager','Recover existing scope authority; if agreement is genuinely absent, prepare a PM-owned user request.',False),
       'dependencies-open':('dependency-open','project-manager','Complete or route the open prerequisites; then refresh readiness.',False),
       'design-not-approved':('review-required','architect','Provide sufficient design and obtain independent architecture review.',False),
+      'in-flight':('in-flight','project-manager','The card is In progress or In review; its worker reports through a native notification. Do not launch a second one.',False),
       'already-owned':('review-required','project-manager','Process the existing job and its report; reconcile and acknowledge it before a fresh claim.',False),
       'user-paused':('decision-required',user,'Wait for the user to resume the project; do not treat quota policy as permission.',True),
       'outside-active-work':('metadata-repair-required','project-manager','Leave explicit Status unchanged; review scheduling with the user if this should be active.',False),

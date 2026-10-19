@@ -17,6 +17,7 @@ It never needs secrets in this file.
 | `project_manager_model`, `architect_model`, `engineer_model` | Authoring/planning role assignments |
 | `architecture_reviewer_model`, `engineering_reviewer_model` | Separate reviewer assignments |
 | `max_workers` | Maximum claimed jobs; default 3, bounded by harness capacity |
+| `job_runtime` | `off` (Claude Code default): Status on the board is the state; claims, checkpoints, Stage, Responsible role and `metrics` are retired. `on` (Codex default, which its conductor needs) keeps them |
 | `continuation_mode` | `native`; `legacy` exists for migration only |
 | `quota_mode` | `pacing`, `weekly`, or `unrestricted` |
 | `quota_daily_percent`, `quota_weekly_cap_percent` | Voluntary allocation policy, not provider entitlement |

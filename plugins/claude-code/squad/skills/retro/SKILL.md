@@ -15,7 +15,7 @@ model. Check the environment before declaring the launcher unavailable.
 Checkpoint the conversation and record agreed outcomes; proposals are not approval.
 Do not mark the main session completed just because a planning discussion ends.
 
-Act as the Project Manager using the configured model. Read `squad.sh metrics`: report avoidable idle time, completion-to-dispatch delays, recovery outcomes and reviewed output per allowance. Separate deliberate pauses and unavailable capacity from eligible idle work.
+Act as the Project Manager using the configured model. Report idle time, completion-to-dispatch delays, recovery outcomes and reviewed output per allowance from the board, the issues and the pull requests (`squad.sh metrics` reports these only with `job_runtime: on`). Separate deliberate pauses and unavailable capacity from eligible idle work.
 
 Held on the last day of the sprint, before the clock turns over. A conversation
 with the Decider, not a form. Its written result is one issue, and every action
@@ -85,4 +85,4 @@ retrospective.
 - A better idea that contradicts an earlier decision goes to the Decider with a
   recommendation, never refused for the contradiction.
 
-Maintain native dependencies, Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Project Manager owns execution and continuation.
+Maintain native dependencies, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Project Manager owns execution and continuation.

@@ -121,12 +121,12 @@ necessary for a particular harness/account combination.
 | Shared local API cooldowns and usage counters | Yes | Yes |
 | GitHub Issues and Projects tracking | Shared CLI | Shared CLI |
 | Task prerequisites using native blocked-by relationships | Shared CLI | Shared CLI |
-| Responsible role, stage, agreement and design status | Shared Project fields | Shared Project fields |
+| Responsible role, stage, agreement and design status | Shared Project fields | Agreement and design; Status is the state, Stage and role only with `job_runtime: on` |
 | Priority, Needed by, forecast and estimates | Shared Project fields | Shared Project fields |
-| Atomic job claims and duplicate-assignment protection | Shared local runtime | Shared local runtime |
+| Atomic job claims and duplicate-assignment protection | Shared local runtime | Off by default (`job_runtime: on`); In progress and In review cards are not dispatched again |
 | Record actual worker and model identity | Yes; native thread/turn metadata too | Yes; native worker identity |
-| Save tracked patch, untracked files, next step and test evidence | Shared checkpoint command | Shared checkpoint command |
-| Durable background-command logs and exit status | Shared CLI | Shared CLI |
+| Save tracked patch, untracked files, next step and test evidence | Shared checkpoint command | Off by default (`job_runtime: on`); pushed commits and the hand-over |
+| Durable background-command logs and exit status | Shared CLI | Off by default (`job_runtime: on`) |
 | Recover unfinished work and acknowledge handled results | Shared CLI | Shared CLI |
 | Review exact PR head against current main | Shared CLI | Shared CLI |
 | Guard merge against changes after review | Shared merge command | Shared merge command |
@@ -138,7 +138,7 @@ necessary for a particular harness/account combination.
 | Managed Project Manager session inspect/attach/rollover | App Server gateway | No equivalent gateway; terminal adapter |
 | Reconcile ended native workers automatically | Exact Codex thread/turn records | Native inspection required before replacement |
 | Recovery services for multiple projects | Per-project systemd instances | One legacy conductor per OS user |
-| Idle-time and dispatch-delay measurements | Shared recorded observations | Shared recorded observations |
+| Idle-time and dispatch-delay measurements | Shared recorded observations | Off by default (`job_runtime: on`) |
 | Model-free CLI for routine GitHub operations | Yes | Yes |
 | Local Git-versioned board backups, isolated per project | Yes | Yes |
 | Confirmed board restore with diff and interruption journal | Supported API fields/views; see limits | Supported API fields/views; see limits |

@@ -26,8 +26,8 @@ passes, then refactor while keeping tests green. For documentation or another
 non-executable deliverable, record the appropriate acceptance check and why a
 failing code test is inapplicable. Never manufacture tests that mirror code.
 
-Use `gitw.sh save "message" -- PATHS` to checkpoint and push. Before long commands
-and at meaningful boundaries also call `squad.sh checkpoint JOB --file FILE`.
+Use `gitw.sh save "message" -- PATHS` to checkpoint and push. With `job_runtime: on`,
+also call `squad.sh checkpoint JOB --file FILE` before long commands.
 The JSON file needs next_step and should include tests, remaining work and blockers;
 the command preserves tracked patches and untracked files. Keep reports and logs
 under the named job artifacts directory. A harness wait for a tool is permitted;
@@ -37,7 +37,8 @@ checking exit status. An exhausted model may leave tools running.
 
 Submit with `gitw.sh submit "title" ISSUE`, which never merges. Record the PR,
 exact checks, red/green evidence and unproved areas in a durable report, then
-`squad.sh complete JOB --result completed --report FILE`. Never review or merge
+`squad.sh complete JOB --result completed --report FILE` (with `job_runtime: on`;
+otherwise the report goes on the issue and the pull request). Never review or merge
 your own work. Failure/interruption preserves the branch, worktree and logs.
 
 Command syntax and recovery details: [runtime reference](../../docs/runtime.md).
@@ -53,6 +54,6 @@ an evidence-backed lesson with `squad.sh memory add --file RECORD` when it would
 prevent a recurring mistake. Proposed lessons are not loaded as active guidance
 until the PM reviews them. Avoid routine transcript summaries and duplicate lessons.
 
-Use the model and effort recorded in the claim. For Codex Sol assignments the
+Use the model and effort the brief or claim records. For Codex Sol assignments the
 required reasoning effort is medium. If the native worker differs, stop and
 report the mismatch before doing work; do not merely label it medium in a report.

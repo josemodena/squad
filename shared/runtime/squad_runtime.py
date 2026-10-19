@@ -42,6 +42,19 @@ def settings(path=None):
     return values
 
 
+def job_runtime(config):
+    """False when the project retired job records: Status on the board is the state."""
+    return str(config.get('job_runtime', 'on')).strip().lower() not in ('off', 'false', 'no', '0')
+
+
+# Recovery events (wake, settle, external, recover) stay: the conductor uses them.
+RETIRED_COMMANDS = ('claim', 'repair-claim', 'pm-claim', 'bind', 'checkpoint', 'complete', 'handoff',
+                    'ack', 'retry', 'run', 'observe')
+RETIRED_NOTE = ('The job runtime is retired in this project (job_runtime: off). Status on the board is '
+                'the state: move the card with squad.sh move, launch the role the brief names, and '
+                'record results on the issue and the pull request.')
+
+
 def root(config):
     return Path(os.path.expanduser(config.get('runtime_dir', config.get('scratch_root', '~/.cache/squad-scratch') + '/runtime')))
 
@@ -266,12 +279,14 @@ def eligible(items, state, config, quota=None):
         reasons = []
         stage = f.get('Stage')
         role = f.get('Responsible role')
+        jobs_on = job_runtime(config)
         if item.get('archived'): reasons.append('outside-active-work')
         if item['state'].upper() != 'OPEN': reasons.append('closed')
         if f.get('Agreement') != 'Agreed': reasons.append('not-agreed')
         if f.get(config.get('status_field', 'Status')) not in ('This sprint', 'In progress', 'In review'): reasons.append('outside-active-work')
-        if role not in ROLES or STAGES.get(stage) != role: reasons.append('role-stage-mismatch')
-        if stage == 'engineering' and f.get('Design') not in ('Approved', 'Existing'): reasons.append('design-not-approved')
+        if jobs_on and (role not in ROLES or STAGES.get(stage) != role): reasons.append('role-stage-mismatch')
+        if jobs_on and stage == 'engineering' and f.get('Design') not in ('Approved', 'Existing'): reasons.append('design-not-approved')
+        if not jobs_on and f.get(config.get('status_field', 'Status')) in ('In progress', 'In review'): reasons.append('in-flight')
         if any(d['state'].upper() != 'CLOSED' for d in item['dependencies']): reasons.append('dependencies-open')
         if any(j['issue'] == item['number'] and (j['status'] in ACTIVE or not j.get('handled')) for j in state['jobs'].values()): reasons.append('already-owned')
         if state.get('paused'): reasons.append('user-paused')
@@ -290,7 +305,7 @@ def eligible(items, state, config, quota=None):
         assessed = state.get('pm_resolutions',{}).get(str(item['number'])) == key
         wait_records = [r for r in records if not (r['reason']=='outside-active-work' and f.get(config.get('status_field','Status'))=='Blocked')]
         user_wait = bool(wait_records) and all(r.get('requires_user') and r.get('pm_review') for r in wait_records)
-        ordinary_wait = bool(reasons) and set(reasons) <= {'policy','provider-limit','insufficient-headroom','user-paused'}
+        ordinary_wait = bool(reasons) and set(reasons) <= {'policy','provider-limit','insufficient-headroom','user-paused','in-flight'}
         pm_needed = bool(reasons) and not ordinary_wait and (bool(pending_reply) or not assessed and not user_wait)
         pm_capacity = not quota or quota.get('verdict')=='run' and (quota.get('policy',{}).get('mode')=='unrestricted' or quota.get('headroom',0)>=float(config.get('metadata_repair_estimate',0.5)))
         pm_allowed = pm_capacity and pm_needed and not state.get('paused') and not item.get('archived') and item['state'].upper()=='OPEN' and f.get(config.get('status_field','Status')) in ('This sprint','In progress','In review','Blocked') and 'already-owned' not in reasons and (not quota or quota.get('verdict')=='run')
@@ -471,6 +486,11 @@ def main():
     config = settings(os.environ.get('SQUAD_SETTINGS_FILE'))
     cmd = args.command
     os.environ['SQUAD_API_OPERATION'] = cmd
+    if not job_runtime(config) and cmd in RETIRED_COMMANDS:
+        raise ValueError(cmd+' is retired. '+RETIRED_NOTE)
+    if not job_runtime(config) and cmd == 'metrics':
+        print(json.dumps({'retired': True, 'note': RETIRED_NOTE}, indent=2))
+        return
     if cmd == 'board-read':
         result=board(config,fresh=args.fresh)
     elif cmd == 'api-status':
@@ -639,7 +659,9 @@ def main():
                     actions=[]
                     for i in result:
                         if i.get('archived') or i['state'].upper()!='OPEN' or ('outside-active-work' in i['reasons'] and i['fields'].get(config.get('status_field','Status'))!='Blocked'):continue
-                        if i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
+                        if i['eligible'] and not job_runtime(config):
+                            actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Move the card to In progress with squad.sh move, then launch the role the brief names.','requires_user':False})
+                        elif i['eligible']: actions.append({'issue':i['number'],'action':'dispatch','owner':i['role'],'next_action':'Claim eligible work with a verified readiness assessment.','requires_user':False})
                         elif i.get('metadata_repair') and i['metadata_repair']['claimable'] and not state.get('pm_reply_pending',{}).get(str(i['number'])):
                             actions.append({'issue':i['number'],'action':'repair-metadata',**i['metadata_repair'],'requires_user':False})
                             actions.extend({'issue':i['number'],**b,'action':'await-pm-user-request' if b.get('pm_review') else 'pm-assessment-required','escalation_owner':'project-manager'} for b in i['blockers'] if b['requires_user'])

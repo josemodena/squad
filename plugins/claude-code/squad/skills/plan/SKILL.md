@@ -77,4 +77,4 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/squad.sh needed-by <decider issue> YYYY-MM-DD
   decision leads with the consequence a person would notice, then the options
   with their cost and risk, then the recommendation.
 
-Maintain native dependencies, Responsible role, Stage, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Project Manager owns execution and continuation.
+Maintain native dependencies, Agreement, Priority, Needed by, Forecast finish and estimates through `squad.sh field` and `squad.sh dependency`. The Project Manager owns execution and continuation.
