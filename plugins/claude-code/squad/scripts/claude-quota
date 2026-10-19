@@ -24,8 +24,13 @@ missing.
     claude-quota            one line for a person
     claude-quota --json     the numbers
 
-Exit code: 0 run, 1 suspend, 2 stale (reading older than --max-age minutes,
-default 60), 3 missing.
+It also reads the per-model weekly meters from the status line's own usage
+file, by default ~/.cache/ccstatusline/usage.json (setting model_usage_file,
+environment SQUAD_MODEL_USAGE_FILE): fableUsage and fableResetAt today. Each
+meter gets a line, and the verdict comes from whichever has less headroom.
+
+Exit code: 0 run, 1 suspend, 2 stale (a reading older than an hour), 3
+missing.
 
 SQUAD_QUOTA_FORCE=run|suspend|stale overrides the verdict. It exists so that a
 session-start hook, a conductor and an eval case can be tested without waiting
@@ -42,8 +47,8 @@ import datetime as dt
 DEFAULT_DAILY = 14.0
 DEFAULT_CAP = 85.0
 DEFAULT_BOUNDARY_HOUR = 17
-MAX_AGE_MIN = 60
 USAGE_FILE = "~/.cache/claude-code/usage.json"
+MODEL_USAGE_FILE = "~/.cache/ccstatusline/usage.json"
 
 
 def find_settings():
@@ -84,6 +89,7 @@ def read_settings():
         "quota_daily_percent": ("daily", float),
         "quota_weekly_cap_percent": ("cap", float),
         "sprint_hour_utc": ("hour", int),
+        "model_usage_file": ("model_usage_file", str),
     }
     for line in front.splitlines():
         parts = line.split(":", 1)
@@ -105,12 +111,60 @@ def utc(ts):
     return dt.datetime.fromtimestamp(ts, dt.timezone.utc)
 
 
+def iso_ts(text):
+    return int(dt.datetime.fromisoformat(str(text).replace("Z", "+00:00")).timestamp())
+
+
+def model_meters(path):
+    """The per-model weekly meters in the status line's usage file: every
+    <name>Usage that has a matching <name>ResetAt, other than the session and
+    the all-models week. Today that is fableUsage and fableResetAt. The file
+    carries no capture time, so its age is its modification time. A missing
+    or unreadable file gives no meters."""
+    try:
+        d = json.load(open(path, encoding="utf-8"))
+        captured = int(os.path.getmtime(path))
+    except (OSError, ValueError):
+        return []
+    meters = []
+    for key in sorted(d):
+        m = re.fullmatch(r"([a-z][A-Za-z]*)Usage", key)
+        if not m or m.group(1) in ("session", "weekly"):
+            continue
+        reset = d.get(m.group(1) + "ResetAt")
+        if reset is None or d[key] is None:
+            continue
+        try:
+            meters.append((m.group(1)[0].upper() + m.group(1)[1:], float(d[key]), iso_ts(reset), captured))
+        except (TypeError, ValueError):
+            continue
+    return meters
+
+
+def reading(name, used, resets_at, captured, now, daily, cap, config, data):
+    """One meter against the rule. A reading above 100 is kept as read: since
+    Claude Code 2.1.299 the file can carry a true value above 100, and
+    apply_policy treats anything at or above 100 as the provider limit."""
+    used = round(used, 1)
+    day_index = int((now - (resets_at - 7 * 86400)) / 86400) + 1   # current day included
+    # The last day of the window may spend everything that is left: the goal is
+    # to reach the reset having used the whole limit.
+    allowance = min(cap, daily * max(1, min(7, day_index)))
+    applied = apply_policy(config, data, allowance, used, resets_at, captured, now)
+    return {"name": name, "used": used, "day": day_index, "verdict": applied["verdict"],
+            "reason": applied["reason"], "allowance_to_date": applied["allowance_to_date"],
+            "headroom": round(applied["headroom"], 1), "resume_at": applied["resume_at"],
+            "policy": applied["policy"], "resets_at": utc(resets_at).strftime("%a %d %b %H:%M UTC"),
+            "data_age_min": (now - captured) // 60}
+
+
+def meter_line(m):
+    return (f"weekly {m['used']}% used, allowance to date {m['allowance_to_date']}% (day {m['day']}), "
+            f"headroom {m['headroom']}%")
+
+
 def main():
     as_json = "--json" in sys.argv
-    max_age = MAX_AGE_MIN
-    for i, a in enumerate(sys.argv):
-        if a == "--max-age" and i + 1 < len(sys.argv):
-            max_age = int(sys.argv[i + 1])
 
     settings, settings_path = read_settings()
     daily, cap, boundary_hour = settings["daily"], settings["cap"], settings["hour"]
@@ -125,47 +179,46 @@ def main():
         sys.exit(3)
     d = json.load(open(path, encoding="utf-8"))
     week = d.get("seven_day") or {}
-    used = round(float(week.get("used_percentage", 0)), 1)
-    resets_at = int(week.get("resets_at", 0))
-    captured = int(d.get("captured_at", 0))
     now = int(time.time())
-    age_min = (now - captured) // 60
-    window_start = resets_at - 7 * 86400
-    elapsed_days = (now - window_start) / 86400
-    day_index = int(elapsed_days) + 1                 # current day included
-    # The last day of the window may spend everything that is left: the goal is
-    # to reach the reset having used the whole limit, so the cap does not apply
-    # on day 7 and the allowance stays 100.
-    allowance = min(cap, daily * max(1, min(7, day_index)))
-    headroom = round(allowance - used, 1)
+    config = runtime_settings(settings_path)
+    meters = [reading("all models", float(week.get("used_percentage", 0)), int(week.get("resets_at", 0)),
+                      int(d.get("captured_at", 0)), now, daily, cap, config, d)]
+    model_path = os.path.expanduser(os.environ.get("SQUAD_MODEL_USAGE_FILE")
+                                    or settings.get("model_usage_file") or MODEL_USAGE_FILE)
+    for name, used, resets_at, captured in model_meters(model_path):
+        meters.append(reading(name, used, resets_at, captured, now, daily, cap, config, {}))
+
+    # The verdict comes from the meter with less headroom: any meter that says
+    # wait makes the whole reading wait, and a stale meter makes it stale.
+    tighter = min(meters, key=lambda m: m["headroom"])
+    deciding = (next((m for m in meters if m["verdict"] == "suspend"), None)
+                or next((m for m in meters if m["verdict"] == "stale"), None) or tighter)
+    verdict = deciding["verdict"]
+    if forced in ("run", "suspend", "stale"):
+        verdict = forced
+    all_models = meters[0]
     n = utc(now)
     b = n.replace(hour=boundary_hour, minute=0, second=0, microsecond=0)
     if b <= n:
         b += dt.timedelta(days=1)
-    verdict = "run" if used < allowance else "suspend"
-    if age_min > max_age:
-        verdict = "stale"
-    if forced in ("run", "suspend", "stale"):
-        verdict = forced
-    out = {"verdict": verdict, "weekly_used": used, "allowance_to_date": allowance,
-           "headroom": headroom, "cap": cap, "daily": daily,
-           "day_of_week_window": day_index,
-           "window_resets_at": utc(resets_at).strftime("%a %d %b %H:%M UTC"),
-           "next_boundary": b.strftime("%a %d %b %H:%M UTC"), "data_age_min": age_min,
-           "settings_file": settings_path}
-    applied = apply_policy(runtime_settings(settings_path), d, allowance, used, resets_at, captured, now)
-    out.update(applied)
-    verdict = applied['verdict']
-    allowance, headroom = applied['allowance_to_date'], applied['headroom']
-    if forced in ('run', 'suspend', 'stale'):
-        verdict = forced
-        out['verdict'] = forced
+    out = {"verdict": verdict, "reason": deciding["reason"], "weekly_used": all_models["used"],
+           "allowance_to_date": tighter["allowance_to_date"], "headroom": tighter["headroom"],
+           "cap": cap, "daily": daily, "day_of_week_window": all_models["day"],
+           "window_resets_at": all_models["resets_at"], "next_boundary": b.strftime("%a %d %b %H:%M UTC"),
+           "data_age_min": all_models["data_age_min"], "settings_file": settings_path,
+           "policy": all_models["policy"],
+           "resume_at": max((m["resume_at"] for m in meters if m["verdict"] == "suspend"), default=0),
+           "tighter": tighter["name"], "meters": meters}
     if as_json:
         print(json.dumps(out, indent=2))
+    elif len(meters) == 1:
+        print(f"{verdict}: {meter_line(all_models)}, next boundary {out['next_boundary']}, "
+              f"reset {all_models['resets_at']}, data age {all_models['data_age_min']} min")
     else:
-        print(f"{verdict}: weekly {used}% used, allowance to date {allowance}% (day {day_index}), "
-              f"headroom {headroom}%, next boundary {out['next_boundary']}, "
-              f"reset {out['window_resets_at']}, data age {age_min} min")
+        print(f"{verdict}: {tighter['name']} is the tighter meter, headroom {tighter['headroom']}%, "
+              f"next boundary {out['next_boundary']}")
+        for m in meters:
+            print(f"  {m['name']}: {meter_line(m)}, reset {m['resets_at']}, data age {m['data_age_min']} min")
     sys.exit({"run": 0, "suspend": 1, "stale": 2}[verdict])
 
 

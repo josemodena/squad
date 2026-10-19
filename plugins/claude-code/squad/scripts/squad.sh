@@ -29,6 +29,7 @@ Usage:
                            [--label <extra label>]...
   squad.sh move <issue-number> <status>
   squad.sh sprint <issue-number> "<sprint name>"
+  squad.sh place <issue-number> [--sprint "<name>"] [--status <status>] [--estimate <n>]
   squad.sh needed-by <issue-number> <YYYY-MM-DD>
   squad.sh board [--sprint "<name>"]
   squad.sh sprint-issue
@@ -142,7 +143,8 @@ option_id() {
 BOARD_BACKED_UP=0
 backup_board() {
   [ "$BOARD_BACKED_UP" = 1 ] && return 0
-  bash "$SCRIPT_DIR/board-backup.sh" guard --writes 10 >&2
+  # One full backup serves the session: a younger-than-an-hour one is reused.
+  bash "$SCRIPT_DIR/board-backup.sh" session >&2
   BOARD_BACKED_UP=1
 }
 
@@ -361,6 +363,55 @@ cmd_sprint() {
   printf 'issue #%s is in iteration %s\n' "$number" "$iteration_title"
 }
 
+# Every field of one card in one call: one read of the card, a pause between
+# the writes, and the session's one board backup.
+cmd_place() {
+  local number="${1:-}"
+  require_issue_number "$number"
+  shift
+  local sprint="" status="" estimate=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --sprint)   sprint="${2:-}"; [ -n "$sprint" ] || usage; shift 2 ;;
+      --status)   status="${2:-}"; [ -n "$status" ] || usage; shift 2 ;;
+      --estimate) estimate="${2:-}"; [ -n "$estimate" ] || usage; shift 2 ;;
+      *) squad_die "Unknown option '$1'." ;;
+    esac
+  done
+  [ -n "$sprint$status$estimate" ] || squad_die "place needs --sprint, --status or --estimate."
+  if [ -n "$status" ]; then
+    status="$(squad_resolve_in_list "$SQUAD_STATUSES" "$status")" \
+      || squad_die "Status must be one of: $(squad_list_inline "$SQUAD_STATUSES")"
+  fi
+  case "$estimate" in *[!0-9.]*) squad_die "--estimate must be a number, for example 5 or 2.5." ;; esac
+
+  local file out
+  file="$(mktemp "${TMPDIR:-/tmp}/squad-place-XXXXXX")"
+  jq -n --arg sf "$SQUAD_STATUS_FIELD" --arg s "$status" \
+        --arg pf "$SQUAD_SPRINT_FIELD" --arg itf "$SQUAD_ITERATION_FIELD" --arg p "$sprint" \
+        --arg ef "$SQUAD_ESTIMATE_FIELD" --arg e "$estimate" '
+    {} + (if $s == "" then {} else {($sf): $s} end)
+       + (if $p == "" then {} else {($pf): $p, ($itf): $p} end)
+       + (if $e == "" then {} else {($ef): $e} end)' > "$file"
+  # The iteration is optional: a board without the field, or without an
+  # iteration the sprint name begins with, keeps only the single-select.
+  if ! out="$(bash "$SCRIPT_DIR/runtime.sh" fields "$number" --file "$file" --optional "$SQUAD_ITERATION_FIELD" 2>&1)"; then
+    case "$out" in
+      *"Unknown option for $SQUAD_SPRINT_FIELD"*)
+        [ -n "$sprint" ] || { rm -f "$file"; squad_die "$out"; }
+        ensure_option "$SQUAD_SPRINT_FIELD" "$sprint" >/dev/null
+        out="$(bash "$SCRIPT_DIR/runtime.sh" fields "$number" --file "$file" --optional "$SQUAD_ITERATION_FIELD" 2>&1)" \
+          || { rm -f "$file"; squad_die "$out"; } ;;
+      *) rm -f "$file"; squad_die "$out" ;;
+    esac
+  fi
+  rm -f "$file"
+  printf '%s\n' "$out" | jq -r --arg n "$number" '
+    "issue #\($n): \(.changed) field(s) changed"
+    + (if (.unchanged | length) > 0 then ", unchanged: \(.unchanged | join(", "))" else "" end)
+    + (if (.skipped | length) > 0 then ", skipped: \(.skipped | join(", "))" else "" end)'
+}
+
 cmd_needed_by() {
   local number="${1:-}" date="${2:-}"
   [ -n "$number" ] && [ -n "$date" ] || usage
@@ -440,9 +491,11 @@ cmd_quota_note() {
   require_issue_number "$number"
 
   local quota_bin usage_bin
-  quota_bin="$(command -v "$SQUAD_QUOTA_COMMAND" || true)"
+  # The plugin's own reader comes first, as in the runtime and the conductor:
+  # it prints every meter, and an older copy on PATH may print only one.
+  quota_bin="$(squad_quota_bin)"
   usage_bin="$(command -v "$SQUAD_USAGE_COMMAND" || true)"
-  [ -n "$quota_bin" ] || squad_die "The quota command '$SQUAD_QUOTA_COMMAND' is not on PATH."
+  [ -n "$quota_bin" ] || squad_die "The quota command '$SQUAD_QUOTA_COMMAND' is neither in the plugin nor on PATH."
   [ -n "$usage_bin" ] || squad_die "The usage command '$SQUAD_USAGE_COMMAND' is not on PATH."
 
   local stamp quota_out usage_out body
@@ -465,6 +518,7 @@ case "${1:-}" in
   issue)      shift; cmd_issue "$@" ;;
   move)       shift; cmd_move "$@" ;;
   sprint)     shift; cmd_sprint "$@" ;;
+  place)      shift; cmd_place "$@" ;;
   needed-by)  shift; cmd_needed_by "$@" ;;
   board)      shift; cmd_board "$@" ;;
   sprint-issue) shift; cmd_sprint_issue "$@" ;;

@@ -185,6 +185,50 @@ def capture(api, config):
     return snapshot
 
 
+SESSION_SECONDS = 3600
+
+
+def session_backup(api, store, config):
+    """One full board backup per working session, not one per write.
+
+    A stamp under the backup directory names the last full backup and when it
+    was taken; a backup younger than an hour serves every write in between.
+    Thirty-two moves in a row each taking a full backup tripped GitHub's
+    secondary rate limit on 19 October 2026. Call inside store.lock()."""
+    stamp = store.path/'session-backup.json'
+    try:
+        last = json.loads(stamp.read_text())
+        if time.time()-float(last['taken_at']) < SESSION_SECONDS and Path(last['snapshot']).is_file():
+            return last['snapshot']
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    path = store.save(capture(api, config), 'session-backup')
+    from squad_runtime import atomic
+    atomic(stamp, {'snapshot': path, 'taken_at': time.time()})
+    return path
+
+
+def item_read(api, config, issue):
+    """The project's fields and one issue's item with its values, in one read."""
+    owner = 'organization' if config.get('project_owner_type') in ('org', 'organization') else 'user'
+    repo_owner, repo_name = config['repository'].split('/', 1)
+    query = ('query($owner:String!,$number:Int!,$rowner:String!,$repo:String!,$issue:Int!){'
+             + owner+'(login:$owner){projectV2(number:$number){id fields(first:100){'+PAGE+'{'+FIELD+'}}}} '
+             'repository(owner:$rowner,name:$repo){issue(number:$issue){projectItems(first:20){nodes{id project{id} '
+             'fieldValues(first:100){'+PAGE+'{'+VALUE+'}}}}}}}')
+    data = api.query(query, {'owner': config['project_owner'], 'number': int(config['project_number']),
+                             'rowner': repo_owner, 'repo': repo_name, 'issue': int(issue)})
+    project = (data.get(owner) or {}).get('projectV2')
+    if not project: raise ValueError('Project missing or inaccessible')
+    if project['fields']['pageInfo'].get('hasNextPage'): raise ValueError('More than 100 project fields; use a full snapshot')
+    content = (data.get('repository') or {}).get('issue') or {}
+    item = next((i for i in (content.get('projectItems') or {}).get('nodes', []) if i['project']['id'] == project['id']), None)
+    if not item: raise ValueError('Issue not found on project')
+    if item['fieldValues']['pageInfo'].get('hasNextPage'):
+        finish_nested(api, [(item['fieldValues'], item['id'], 'ProjectV2Item', 'fieldValues', VALUE, None)])
+    return {'id': project['id']}, project['fields']['nodes'], item
+
+
 def load_snapshot(path):
     s=json.loads(Path(path).read_text())
     checksum=s.pop('sha256',None)
@@ -348,7 +392,10 @@ def execute(api,store,plan):
     journal={'plan':plan,'completed':0,'state':'prepared'}
     store.save(journal,'restore-journal')
     try:
-        for change in plan['changes']:
+        for i,change in enumerate(plan['changes']):
+            # A batch of writes pauses between them, so a run of board writes
+            # stays under GitHub's secondary rate limit.
+            if i and plan.get('pause'): time.sleep(plan['pause'])
             journal['state']='in-flight';store.save(journal,'restore-journal')
             mutation(api,change['kind'],change['input'])
             journal['completed']+=1;journal['state']='applied';store.save(journal,'restore-journal')
@@ -372,6 +419,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
     guard=sub.add_parser('guard');guard.add_argument('--writes',type=int,default=20)
+    sub.add_parser('session',help='Take a full backup unless one younger than an hour exists')
     snap=sub.add_parser('snapshot');snap.add_argument('--dry-run',action='store_true',help='Read/export JSON to stdout without saving a local snapshot')
     restore=sub.add_parser('restore');restore.add_argument('snapshot');restore.add_argument('--dry-run',action='store_true')
     restore.add_argument('--apply',action='store_true');restore.add_argument('--confirm',help='Exact project node ID, required for apply')
@@ -381,6 +429,8 @@ def main():
     os.environ['SQUAD_API_OPERATION']='board-'+args.command
     api=API(config=config);store=Store(config)
     with store.lock():
+        if args.command=='session':
+            print(json.dumps({'snapshot':session_backup(api,store,config)}));return
         current=capture(api,config)
         if args.command=='guard':
             api.preflight(args.writes)

@@ -60,6 +60,11 @@ class FakeAPI:
                 view=next(v for v in s['views'] if v['id']==x['viewId'])
                 for k in ('name','layout','filter'):view[k]=x[k]
             return {'ok':True}
+        if 'projectItems' in query:
+            items=[i for i in s['items'] if i['content'].get('number')==variables['issue']]
+            return {'user':{'projectV2':{'id':s['project']['id'],'fields':conn(copy.deepcopy(s['fields']))}},
+                    'repository':{'issue':{'projectItems':{'nodes':[{'id':i['id'],'project':{'id':s['project']['id']},
+                        'fieldValues':copy.deepcopy(i['fieldValues'])} for i in items]}}}}
         if 'projectV2(number' in query:return {'user':{'projectV2':copy.deepcopy(s['project'])}}
         if 'ProjectV2Item{fieldValues' in query:
             return {'node':{'fieldValues':copy.deepcopy(s['items'][0]['fieldValues'])}}
@@ -172,6 +177,46 @@ class BoardBackup(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'snapshot failed'):
                 runtime.field_set(self.config,1,'Status','Backlog')
         self.assertFalse(api.calls)
+    def place(self,api,values,optional=()):
+        import squad_runtime as runtime
+        api.state['items'][0]['content']['repository']={'nameWithOwner':'example/demo'}
+        with patch.object(b,'API',return_value=api),patch.object(b.time,'sleep') as sleep:
+            result=runtime.fields_set({**self.config,'repository':'example/demo'},1,values,optional)
+        return result,sleep
+    def full_reads(self,api):
+        return sum(1 for q,_ in api.calls if 'items(first:' in q)
+    def test_two_consecutive_place_calls_take_one_backup(self):
+        api=FakeAPI()
+        with patch.object(b,'capture',wraps=b.capture) as capture:
+            first,_=self.place(api,{'Status':'Backlog'})
+            second,_=self.place(api,{'Status':'Done'})
+        self.assertEqual(capture.call_count,1)
+        self.assertEqual(first['backup'],second['backup'])
+        self.assertEqual(self.full_reads(api),1)
+        self.assertEqual(api.state['items'][0]['fieldValues']['nodes'][0]['optionId'],'OPT1')
+    def test_session_backup_is_refreshed_after_an_hour(self):
+        api=FakeAPI()
+        with patch.object(b,'capture',wraps=b.capture) as capture:
+            self.place(api,{'Status':'Backlog'})
+            stamp=self.store.path/'session-backup.json'
+            data=json.loads(stamp.read_text());data['taken_at']-=3601;stamp.write_text(json.dumps(data))
+            self.place(api,{'Status':'Done'})
+        self.assertEqual(capture.call_count,2)
+    def test_place_sets_every_field_in_one_read_with_a_pause_between_writes(self):
+        api=FakeAPI();state=api.state
+        state['fields'].append({'id':'EST','name':'Estimate','dataType':'NUMBER','__typename':'ProjectV2Field'})
+        state['fields'].append({'id':'IT','name':'Iteration','dataType':'ITERATION','__typename':'ProjectV2IterationField',
+            'configuration':{'iterations':[{'id':'IT5','title':'Sprint 5','startDate':'2026-10-17','duration':7}],'completedIterations':[]}})
+        api.calls.clear()
+        result,sleep=self.place(api,{'Status':'Backlog','Estimate':'2','Iteration':'Sprint 5 (17 to 24 Oct)'},('Iteration',))
+        self.assertEqual(result['changed'],3)
+        values=b.values_of(state['items'][0])
+        self.assertEqual(values['EST']['number'],2.0);self.assertEqual(values['IT']['iterationId'],'IT5')
+        self.assertEqual(sum(1 for q,_ in api.calls if 'projectItems' in q),1)
+        self.assertEqual(sleep.call_count,2)
+    def test_an_optional_field_the_board_lacks_is_skipped(self):
+        result,_=self.place(FakeAPI(),{'Status':'Backlog','Iteration':'Sprint 5'},('Iteration',))
+        self.assertEqual(result['skipped'],['Iteration'])
     def test_missing_item_blocks_complete_restore(self):
         saved=fixture();current=copy.deepcopy(saved);current['items']=[]
         self.assertTrue(b.plan_restore(saved,current)['blocked'])

@@ -289,6 +289,10 @@ check_contains "handover: the header names the current sprint issue" "$out" "spr
 
 # --- 6. the quota -----------------------------------------------------------
 
+# The per-model meters live in a second usage file. Point it at nothing so the
+# checks below read the all-models meter alone, whatever this machine holds.
+export SQUAD_MODEL_USAGE_FILE="$WORK/no-model-usage.json"
+
 cat > "$WORK/usage.json" <<USAGE
 {"captured_at": $(date -u +%s), "seven_day": {"used_percentage": 10.0, "resets_at": $(( $(date -u +%s) + 4 * 86400 ))}}
 USAGE
@@ -309,6 +313,55 @@ direct="$(SQUAD_USAGE_FILE="$WORK/usage.json" "$SCRIPTS/claude-quota" 2>&1)"
 viabash="$(SQUAD_USAGE_FILE="$WORK/usage.json" bash "$SCRIPTS/claude-quota" 2>&1)"; rc=$?
 check_equal    "quota: run with bash it exits 0"           "$rc" "0"
 check_equal    "quota: run with bash it prints the same line" "$viabash" "$direct"
+
+# Two meters: all models at 70 and Fable at 90, on the last day of the window,
+# under a 14% a day and 85% a week rule. All models alone would run; Fable is
+# the tighter meter, so the verdict is to wait.
+cat > "$WORK/quota-two.md" <<'TWO'
+---
+quota_daily_percent: 14
+quota_weekly_cap_percent: 85
+sprint_hour_utc: 17
+---
+TWO
+now_ts="$(date -u +%s)"
+reset_ts=$(( now_ts + 43200 ))
+reset_iso="$(date -u -d "@$reset_ts" '+%Y-%m-%dT%H:%M:%S+00:00')"
+cat > "$WORK/usage-two.json" <<USAGE
+{"captured_at": $now_ts, "seven_day": {"used_percentage": 70.0, "resets_at": $reset_ts}}
+USAGE
+cat > "$WORK/model-usage.json" <<USAGE
+{"sessionUsage": 3, "weeklyUsage": 70, "weeklyResetAt": "$reset_iso", "fableUsage": 90, "fableResetAt": "$reset_iso"}
+USAGE
+out="$(SQUAD_SETTINGS="$WORK/quota-two.md" SQUAD_USAGE_FILE="$WORK/usage-two.json" \
+  SQUAD_MODEL_USAGE_FILE="$WORK/model-usage.json" "$SCRIPTS/claude-quota" 2>&1)"; rc=$?
+check_contains "quota: the all-models meter has its own line" "$out" "all models: weekly 70.0% used"
+check_contains "quota: the Fable meter has its own line"      "$out" "Fable: weekly 90.0% used"
+check_contains "quota: the verdict comes from the tighter meter" "$(printf '%s' "$out" | head -1)" "suspend: Fable is the tighter meter"
+check_equal    "quota: Fable at 90 against 70 waits (exit 1)" "$rc" "1"
+
+# With room on both, the tighter meter still names itself and the run goes on.
+sed -i 's/"fableUsage": 90/"fableUsage": 75/' "$WORK/model-usage.json"
+out="$(SQUAD_SETTINGS="$WORK/quota-two.md" SQUAD_USAGE_FILE="$WORK/usage-two.json" \
+  SQUAD_MODEL_USAGE_FILE="$WORK/model-usage.json" "$SCRIPTS/claude-quota" 2>&1)"; rc=$?
+check_contains "quota: room on both meters runs" "$(printf '%s' "$out" | head -1)" "run: Fable is the tighter meter"
+check_equal    "quota: and exits 0" "$rc" "0"
+
+# Since Claude Code 2.1.299 a reading can be above 100; that is exhausted, never wrapped.
+sed -i 's/"fableUsage": 75/"fableUsage": 104/' "$WORK/model-usage.json"
+out="$(SQUAD_SETTINGS="$WORK/quota-two.md" SQUAD_USAGE_FILE="$WORK/usage-two.json" \
+  SQUAD_MODEL_USAGE_FILE="$WORK/model-usage.json" "$SCRIPTS/claude-quota" --json 2>&1)"
+check_contains "quota: a meter above 100 is the provider limit" "$out" '"reason": "provider-limit"'
+check_contains "quota: and is kept as read"                     "$out" '"used": 104.0'
+
+# The sprint quota note records both meters, from the plugin's own reader.
+printf '#!/usr/bin/env bash\necho "usage summary"\n' > "$WORK/bin/claude-usage"; chmod +x "$WORK/bin/claude-usage"
+: > "$FAKE_GH_LOG"
+SQUAD_USAGE_FILE="$WORK/usage-two.json" SQUAD_MODEL_USAGE_FILE="$WORK/model-usage.json" \
+  bash "$SCRIPTS/squad.sh" quota-note 7 >/dev/null 2>&1
+out="$(cat "$FAKE_GH_LOG")"
+check_contains "quota note: records the all-models meter" "$out" "all models: weekly 70.0% used"
+check_contains "quota note: records the Fable meter"      "$out" "Fable: weekly 104.0% used"
 
 # --- 7. the hooks -----------------------------------------------------------
 
@@ -559,6 +612,15 @@ STAGED
 out="$(FAKE_GH_GRAPHQL="$WORK/no-iteration.json" bash "$SCRIPTS/squad.sh" sprint 12 "Sprint 2" 2>&1)"
 check_contains "sprint: a board with no iteration field still works" "$out" "issue #12 is in sprint Sprint 2"
 check_contains "sprint: and says the field is missing"               "$out" 'no "Iteration" field'
+
+# --- 7e. place sets a card's fields in one call ------------------------------
+
+out="$(bash "$SCRIPTS/squad.sh" place 12 2>&1)"; rc=$?
+check_contains "place: it needs a field to set" "$out" "place needs --sprint, --status or --estimate"
+out="$(bash "$SCRIPTS/squad.sh" place 12 --status Nowhere 2>&1)"
+check_contains "place: an unknown status is refused before any read" "$out" "Status must be one of"
+out="$(bash "$SCRIPTS/squad.sh" place 12 --estimate two 2>&1)"
+check_contains "place: the estimate is a number" "$out" "--estimate must be a number"
 
 # --- 7c. housekeeping and the release review --------------------------------
 
