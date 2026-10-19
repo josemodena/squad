@@ -11,6 +11,10 @@
 # from here is deterministic; reading what a pane happens to be running is not.
 set -uo pipefail
 
+# Read the hook's input first, on every path. Since Claude Code 2.1.299 an
+# action the harness cannot hand to a hook is refused, not let through.
+[ -t 0 ] || timeout 5 cat >/dev/null 2>&1 || true
+
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SCRIPTS="$PLUGIN_ROOT/scripts"
 

@@ -4,13 +4,15 @@
 # dirty tree, and the person is the one who decides which it is.
 set -uo pipefail
 
+# Read the hook's input first, on every path. Since Claude Code 2.1.299 an
+# action the harness cannot hand to a hook is refused, not let through.
+[ -t 0 ] || timeout 5 cat >/dev/null 2>&1 || true
+
 # A meeting neither renames the Administrator tab nor posts its handover/commits its files.
 if [ -n "${SQUAD_MEETING_ID:-}" ]; then
   :
   exit 0
 fi
-
-cat >/dev/null 2>&1 || true   # drain the hook's JSON input
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 [ -n "$root" ] || exit 0

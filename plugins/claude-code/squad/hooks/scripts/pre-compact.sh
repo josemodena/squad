@@ -8,6 +8,10 @@
 # out, the compaction is blocked rather than run without a hand-over.
 set -uo pipefail
 
+# Read the hook's input first, on every path. Since Claude Code 2.1.299 an
+# action the harness cannot hand to a hook is refused, not let through.
+[ -t 0 ] || timeout 5 cat >/dev/null 2>&1 || true
+
 # A meeting neither renames the Administrator tab nor posts its handover/commits its files.
 if [ -n "${SQUAD_MEETING_ID:-}" ]; then
   printf 'Squad meeting: preserve decisions and open questions in a meeting checkpoint.\n'
@@ -22,7 +26,9 @@ if [ ! -x "$HANDOVER" ]; then
   exit 0
 fi
 
-if out="$(timeout 20 bash "$HANDOVER" 2>&1)"; then
+# The hand-over reads the board's in-flight lines and the last hand-over, so
+# it gets 40 of the hook's 60 seconds; the fallback below reads nothing.
+if out="$(timeout 40 bash "$HANDOVER" 2>&1)"; then
   printf 'Squad: hand-over posted on the sprint issue.\n%s\n' "$out"
   exit 0
 fi
@@ -32,5 +38,6 @@ case "$out" in
 esac
 
 printf 'Squad: the hand-over could not be posted (%s). It reads:\n\n' "$(printf '%s' "$out" | head -1)"
-timeout 20 bash "$HANDOVER" --dry-run 2>/dev/null || true
+not_read="Not read: the hand-over could not be posted; see the newest hand-over on the sprint issue."
+timeout 15 bash "$HANDOVER" --dry-run --in-flight "$not_read" --next "$not_read" --waits "$not_read" 2>/dev/null || true
 exit 0
